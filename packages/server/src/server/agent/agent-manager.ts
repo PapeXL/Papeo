@@ -89,6 +89,7 @@ import {
   type ProviderSubagentStoreEvent,
 } from "./provider-subagents/store.js";
 import { withTimeout } from "../../utils/promise-timeout.js";
+import { extractAttention } from "../persistence-hooks.js";
 
 const RELOAD_SESSION_CLOSE_TIMEOUT_MS = 3_000;
 const INTERRUPT_SESSION_TIMEOUT_MS = 2_000;
@@ -340,7 +341,7 @@ export interface WaitForAgentStartOptions {
   signal?: AbortSignal;
 }
 
-type AttentionState =
+export type AttentionState =
   | { requiresAttention: false }
   | {
       requiresAttention: true;
@@ -1283,6 +1284,7 @@ export class AgentManager {
       labels?: Record<string, string>;
       workspaceId?: string;
       owner?: AgentOwner;
+      attention?: AttentionState;
     },
     resumeOptions?: AgentResumeSessionOptions,
   ): Promise<ManagedAgent> {
@@ -1314,6 +1316,7 @@ export class AgentManager {
       labels?: Record<string, string>;
       workspaceId?: string;
       owner?: AgentOwner;
+      attention?: AttentionState;
     },
     resumeOptions?: AgentResumeSessionOptions,
   ): Promise<ManagedAgent> {
@@ -1838,14 +1841,7 @@ export class AgentManager {
 
   private dispatchStoredAgentState(record: StoredAgentRecord): void {
     const updatedAt = new Date(record.updatedAt);
-    const attention: AttentionState =
-      record.requiresAttention && record.attentionReason && record.attentionTimestamp
-        ? {
-            requiresAttention: true,
-            attentionReason: record.attentionReason,
-            attentionTimestamp: new Date(record.attentionTimestamp),
-          }
-        : { requiresAttention: false };
+    const attention = extractAttention(record);
     this.dispatch({
       type: "agent_state",
       agent: {
@@ -3467,7 +3463,12 @@ export class AgentManager {
       await this.refreshSessionState(managed, { emit: false });
       this.assertAgentRegistrationActive(managed);
       managed.lifecycle = "idle";
-      this.touchUpdatedAt(managed);
+      // A caller that supplies `updatedAt` is restoring a persisted agent, and restoring is
+      // not activity. Stamping now over it rewrote the workspace's "last used" every time a
+      // chat was reopened. Fresh registrations have no stored time to preserve.
+      if (!options?.updatedAt) {
+        this.touchUpdatedAt(managed);
+      }
       await this.persistSnapshot(managed);
       this.assertAgentRegistrationActive(managed);
       this.emitState(managed, { persist: false });

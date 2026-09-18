@@ -6,6 +6,7 @@ import type { AgentStorage } from "./agent-storage.js";
 import {
   buildConfigOverrides,
   buildSessionConfig,
+  extractAttention,
   extractTimestamps,
   isStoredAgentProviderAvailable,
   toAgentPersistenceHandle,
@@ -109,7 +110,7 @@ export async function ensureAgentLoaded(
         handle,
         buildConfigOverrides(record),
         agentId,
-        extractTimestamps(record),
+        { ...extractTimestamps(record), attention: extractAttention(record) },
         record.archivedAt ? { purpose: "history" } : undefined,
       );
       deps.logger.info({ agentId, provider: record.provider }, "Agent resumed from persistence");
