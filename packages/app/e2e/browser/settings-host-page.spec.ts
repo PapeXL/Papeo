@@ -36,6 +36,18 @@ test.describe("Settings host page", () => {
       await expectSettingsHeader(page, "Agents");
       await expectHostInjectMcpCard(page);
     });
+    await test.step("workspaces section shows inactivity auto-archive", async () => {
+      await openHostSection(page, serverId, "workspaces");
+      await expectSettingsHeader(page, "Workspaces");
+      const card = page.getByTestId("host-page-auto-archive-inactive-workspaces-card");
+      await expect(card).toBeVisible();
+      const toggle = page.getByTestId("host-page-auto-archive-inactive-workspaces-switch");
+      await expect(toggle).toBeVisible();
+      await toggle.click();
+      await expect(page.getByTestId("host-page-auto-archive-inactive-workspaces-days")).toHaveValue(
+        "7",
+      );
+    });
     await test.step("providers section shows the providers card", async () => {
       await expectHostProvidersCard(page, serverId);
       await expectSettingsHeader(page, "Providers");

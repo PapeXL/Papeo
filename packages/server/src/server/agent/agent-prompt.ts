@@ -24,6 +24,7 @@ export type AgentRunController = Pick<
   | "streamAgent"
 > & {
   reloadAgentSession(agentId: string): Promise<unknown>;
+  recordWorkspaceActivityForAgent?(agentId: string): void;
 };
 
 export interface StartAgentRunOptions {
@@ -97,6 +98,7 @@ export async function startAgentRun(
   options?: StartAgentRunOptions,
 ): Promise<{ disposition: PromptDispatchDisposition }> {
   const snapshot = agentManager.getAgent(agentId);
+  agentManager.recordWorkspaceActivityForAgent?.(agentId);
   logger.trace(
     {
       agentId,

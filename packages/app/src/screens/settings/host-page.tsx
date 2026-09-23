@@ -15,6 +15,13 @@ import type { TFunction } from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, Text, View } from "react-native";
+import { EditingTextInput as TextInput } from "@/components/ui/text-input";
+import { useHostFeature } from "@/runtime/host-features";
+import {
+  DEFAULT_AUTO_ARCHIVE_AFTER_INACTIVITY_DAYS,
+  getAutoArchiveAfterInactivityDays,
+  parseAutoArchiveAfterInactivityDays,
+} from "./auto-archive-inactivity-config";
 import { StyleSheet, useUnistyles, withUnistyles } from "react-native-unistyles";
 import type { TerminalProfile } from "@getpaseo/protocol/messages";
 import {
@@ -306,6 +313,7 @@ export function HostWorkspacesPage({ serverId }: { serverId: string }) {
       {isConnected ? (
         <SettingsSection title={t("settings.hostSections.workspaces")}>
           <AutoArchiveMergedWorkspacesCard serverId={serverId} />
+          <AutoArchiveInactiveWorkspacesCard serverId={serverId} />
         </SettingsSection>
       ) : (
         <View style={[settingsStyles.card, styles.emptyCard]}>
@@ -930,6 +938,113 @@ function AutoArchiveMergedWorkspacesCard({ serverId }: { serverId: string }) {
           testID="host-page-auto-archive-merged-workspaces-switch"
         />
       </View>
+    </View>
+  );
+}
+
+function AutoArchiveInactiveWorkspacesCard({ serverId }: { serverId: string }) {
+  const isConnected = useHostRuntimeIsConnected(serverId);
+  const supportsSetting = useHostFeature(serverId, "autoArchiveAfterInactivity");
+  const { config, patchConfig } = useDaemonConfig(serverId);
+  const days = getAutoArchiveAfterInactivityDays(config);
+  const [draft, setDraft] = useState(days === null ? "" : String(days));
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDraft(days === null ? "" : String(days));
+  }, [days]);
+
+  const commitDays = useCallback(
+    (next: number | null) => {
+      setError(null);
+      void patchConfig({ autoArchiveAfterInactivityDays: next }).catch((caught) => {
+        const message = caught instanceof Error ? caught.message : String(caught);
+        setError(message);
+      });
+    },
+    [patchConfig],
+  );
+
+  const handleEnabledChange = useCallback(
+    (enabled: boolean) => {
+      commitDays(enabled ? DEFAULT_AUTO_ARCHIVE_AFTER_INACTIVITY_DAYS : null);
+    },
+    [commitDays],
+  );
+
+  const handleDaysChange = useCallback(
+    (value: string) => {
+      setDraft(value);
+      const parsed = parseAutoArchiveAfterInactivityDays(value);
+      if (parsed !== null && parsed !== days) {
+        commitDays(parsed);
+      }
+    },
+    [commitDays, days],
+  );
+
+  const handleDaysBlur = useCallback(() => {
+    setDraft(days === null ? "" : String(days));
+  }, [days]);
+
+  if (!isConnected) return null;
+
+  if (!supportsSetting) {
+    return (
+      <View style={settingsStyles.card} testID="host-page-auto-archive-inactive-workspaces-card">
+        <View style={settingsStyles.row}>
+          <View style={settingsStyles.rowContent}>
+            <Text style={settingsStyles.rowTitle}>Archive inactive workspaces</Text>
+            <Text style={settingsStyles.rowHint}>
+              Update the host to archive inactive workspaces
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={settingsStyles.card} testID="host-page-auto-archive-inactive-workspaces-card">
+      <View style={settingsStyles.row}>
+        <View style={settingsStyles.rowContent}>
+          <Text style={settingsStyles.rowTitle}>Archive inactive workspaces</Text>
+          <Text style={settingsStyles.rowHint}>
+            Archive quiet workspaces after a number of days. Unarchive does not restore provider
+            background shells or Monitor watches.
+          </Text>
+        </View>
+        <Switch
+          value={days !== null}
+          onValueChange={handleEnabledChange}
+          accessibilityLabel="Archive inactive workspaces"
+          testID="host-page-auto-archive-inactive-workspaces-switch"
+        />
+      </View>
+      {days !== null ? (
+        <View style={settingsStyles.row}>
+          <View style={settingsStyles.rowContent}>
+            <Text style={settingsStyles.rowTitle}>Days of inactivity</Text>
+          </View>
+          <TextInput
+            initialValue={draft}
+            onChangeText={handleDaysChange}
+            onBlur={handleDaysBlur}
+            keyboardType="number-pad"
+            inputMode="numeric"
+            accessibilityLabel="Days of inactivity before auto-archive"
+            testID="host-page-auto-archive-inactive-workspaces-days"
+          />
+        </View>
+      ) : null}
+      {error ? (
+        <InlineAlert
+          variant="error"
+          title="Unable to update workspaces"
+          description={error}
+          testID="host-page-auto-archive-inactive-workspaces-error"
+        />
+      ) : null}
     </View>
   );
 }

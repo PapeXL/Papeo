@@ -47,79 +47,130 @@ const defaultDependencies: ArchiveIfSafeDependencies = {
   killTerminalsForWorkspace,
 };
 
-export async function archiveIfSafe(input: {
-  workspaceId: string;
-  snapshot: WorkspaceGitRuntimeSnapshot;
-  options: AutoArchiveArchiveOptions;
-  log: Logger;
-  deps?: ArchiveIfSafeDependencies;
-}): Promise<void> {
-  const { workspaceId, snapshot, options, log } = input;
-  const deps = input.deps ?? defaultDependencies;
-  const cwd = snapshot.cwd;
-  const pullRequest = snapshot.forge.pullRequest;
+export type AutoArchiveReason = "merge" | "inactivity";
 
-  if (!pullRequest?.isMerged) {
-    return;
-  }
-  if (snapshot.git.isDirty === true) {
-    return;
-  }
-  if (typeof snapshot.git.aheadOfOrigin === "number" && snapshot.git.aheadOfOrigin > 0) {
-    return;
-  }
+function gitBlocksAutoArchive(snapshot: WorkspaceGitRuntimeSnapshot | null): boolean {
+  if (snapshot?.git.isDirty === true) return true;
+  return typeof snapshot?.git.aheadOfOrigin === "number" && snapshot.git.aheadOfOrigin > 0;
+}
 
-  const ownership = await deps.isPaseoOwnedWorktreeCwd(cwd, {
+function archiveRequestId(reason: AutoArchiveReason): string {
+  return reason === "merge" ? "auto-archive-on-merge" : "auto-archive-on-inactivity";
+}
+
+async function mergeOwnershipBlocksArchive(
+  snapshot: WorkspaceGitRuntimeSnapshot,
+  options: AutoArchiveArchiveOptions,
+  deps: ArchiveIfSafeDependencies,
+): Promise<boolean> {
+  const ownership = await deps.isPaseoOwnedWorktreeCwd(snapshot.cwd, {
     paseoHome: options.paseoHome,
     worktreesRoot: options.paseoWorktreesBaseRoot,
   });
-  if (!ownership.allowed) {
+  return !ownership.allowed;
+}
+
+async function attemptAutoArchive(input: {
+  workspaceId: string;
+  snapshot: WorkspaceGitRuntimeSnapshot | null;
+  options: AutoArchiveArchiveOptions;
+  log: Logger;
+  reason: AutoArchiveReason;
+  deps: ArchiveIfSafeDependencies;
+}): Promise<void> {
+  const { workspaceId, snapshot, options, log, reason, deps } = input;
+  const pullRequest = snapshot?.forge.pullRequest;
+  const archiveCwd = snapshot?.cwd ?? "";
+
+  if (reason === "merge") {
+    const autoArchivedChangeRequestUrl = await options.getAutoArchivedChangeRequestUrl(workspaceId);
+    if (autoArchivedChangeRequestUrl === pullRequest?.url) {
+      return;
+    }
+  }
+
+  await deps.archiveByScope(
+    {
+      paseoHome: options.paseoHome,
+      paseoWorktreesBaseRoot: options.paseoWorktreesBaseRoot,
+      github: options.github,
+      workspaceGitService: options.workspaceGitService,
+      agentManager: options.agentManager,
+      agentStorage: options.agentStorage,
+      findWorkspaceIdForCwd: options.findWorkspaceIdForCwd,
+      listActiveWorkspaces: options.listActiveWorkspaces,
+      archiveWorkspaceRecord: (workspaceIdToArchive) =>
+        options.archiveWorkspaceRecord(workspaceIdToArchive, {
+          ...(reason === "merge" && pullRequest?.url
+            ? { autoArchivedChangeRequestUrl: pullRequest.url }
+            : {}),
+          autoArchiveReason: reason,
+        }),
+      emitWorkspaceUpdatesForWorkspaceIds: options.emitWorkspaceUpdatesForWorkspaceIds,
+      markWorkspaceArchiving: options.markWorkspaceArchiving,
+      clearWorkspaceArchiving: options.clearWorkspaceArchiving,
+      killTerminalsForWorkspace: (workspaceIdToKill) =>
+        deps.killTerminalsForWorkspace(
+          {
+            terminalManager: options.terminalManager,
+            sessionLogger: log,
+          },
+          workspaceIdToKill,
+        ),
+      sessionLogger: log,
+    },
+    {
+      scope: { kind: "workspace", workspaceId },
+      requestId: archiveRequestId(reason),
+    },
+  );
+  if (reason === "merge" && pullRequest) {
+    log.info(
+      {
+        workspaceId,
+        cwd: archiveCwd,
+        branch: pullRequest.headRefName,
+        pullRequestUrl: pullRequest.url,
+      },
+      "Auto-archived worktree after PR merge",
+    );
+    return;
+  }
+  log.info({ workspaceId, cwd: archiveCwd }, "Auto-archived workspace after inactivity");
+}
+
+export async function archiveIfSafe(input: {
+  workspaceId: string;
+  snapshot: WorkspaceGitRuntimeSnapshot | null;
+  options: AutoArchiveArchiveOptions;
+  log: Logger;
+  reason?: AutoArchiveReason;
+  deps?: ArchiveIfSafeDependencies;
+}): Promise<void> {
+  const { workspaceId, snapshot, options, log } = input;
+  const reason = input.reason ?? "merge";
+  const deps = input.deps ?? defaultDependencies;
+  const pullRequest = snapshot?.forge.pullRequest;
+  const isMerge = reason === "merge";
+
+  if (isMerge && (!snapshot || !pullRequest?.isMerged)) {
+    return;
+  }
+  if (gitBlocksAutoArchive(snapshot)) {
+    return;
+  }
+  if (isMerge && snapshot && (await mergeOwnershipBlocksArchive(snapshot, options, deps))) {
     return;
   }
 
   try {
-    const autoArchivedChangeRequestUrl = await options.getAutoArchivedChangeRequestUrl(workspaceId);
-    if (autoArchivedChangeRequestUrl === pullRequest.url) {
-      return;
-    }
-
-    await deps.archiveByScope(
-      {
-        paseoHome: options.paseoHome,
-        paseoWorktreesBaseRoot: options.paseoWorktreesBaseRoot,
-        github: options.github,
-        workspaceGitService: options.workspaceGitService,
-        agentManager: options.agentManager,
-        agentStorage: options.agentStorage,
-        findWorkspaceIdForCwd: options.findWorkspaceIdForCwd,
-        listActiveWorkspaces: options.listActiveWorkspaces,
-        archiveWorkspaceRecord: (workspaceIdToArchive) =>
-          options.archiveWorkspaceRecord(workspaceIdToArchive, {
-            autoArchivedChangeRequestUrl: pullRequest.url,
-          }),
-        emitWorkspaceUpdatesForWorkspaceIds: options.emitWorkspaceUpdatesForWorkspaceIds,
-        markWorkspaceArchiving: options.markWorkspaceArchiving,
-        clearWorkspaceArchiving: options.clearWorkspaceArchiving,
-        killTerminalsForWorkspace: (workspaceIdToKill) =>
-          deps.killTerminalsForWorkspace(
-            {
-              terminalManager: options.terminalManager,
-              sessionLogger: log,
-            },
-            workspaceIdToKill,
-          ),
-        sessionLogger: log,
-      },
-      {
-        scope: { kind: "workspace", workspaceId },
-        requestId: "auto-archive-on-merge",
-      },
-    );
-    log.info(
-      { workspaceId, cwd, branch: pullRequest.headRefName, pullRequestUrl: pullRequest.url },
-      "Auto-archived worktree after PR merge",
-    );
+    await attemptAutoArchive({ workspaceId, snapshot, options, log, reason, deps });
   } catch (error) {
-    log.warn({ err: error, cwd }, "Auto-archive after merge failed");
+    log.warn(
+      { err: error, cwd: snapshot?.cwd ?? "" },
+      reason === "merge"
+        ? "Auto-archive after merge failed"
+        : "Auto-archive after inactivity failed",
+    );
   }
 }

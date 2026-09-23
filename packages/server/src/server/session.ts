@@ -156,6 +156,7 @@ import {
   type WorkspaceMutation,
   type WorkspaceRegistry,
 } from "./workspace-registry.js";
+import { stampWorkspaceActivity } from "./workspace-activity.js";
 import { wrapSpokenInput } from "./voice-config.js";
 import { isVoicePermissionAllowed } from "./voice-permission-policy.js";
 import {
@@ -1070,6 +1071,7 @@ export class Session {
       clientSupportsWrapReflow: (source) =>
         this.supportsForSource(CLIENT_CAPS.terminalReflowableSnapshot, source),
       getClientBufferedAmount: (source) => this.getTransportBufferedAmount(source),
+      onUserInput: (workspaceId) => this.recordWorkspaceActivity(workspaceId),
     });
     this.agentUpdates = createAgentUpdatesService({
       emit: (message) => this.emit(message),
@@ -1479,6 +1481,19 @@ export class Session {
 
   public getClientActivity(source = this.delivery.currentSource): ClientActivity | null {
     return source ? (this.clientSources.get(source)?.activity ?? null) : null;
+  }
+
+  public listClientActivities(): ClientActivity[] {
+    const activities: ClientActivity[] = [];
+    for (const { activity } of this.clientSources.values()) {
+      if (activity) activities.push(activity);
+    }
+    return activities;
+  }
+
+  private recordWorkspaceActivity(workspaceId: string | undefined): void {
+    if (!workspaceId) return;
+    void stampWorkspaceActivity(this.workspaceRegistry, workspaceId, new Date().toISOString());
   }
 
   private getFocusedAgentSelectionForCwd(cwd: string):
@@ -4864,6 +4879,7 @@ export class Session {
       ? new Date(msg.appVisibilityChangedAt)
       : new Date(msg.lastActivityAt);
     const metadata = this.currentClientMetadata();
+    const previousActivity = metadata.activity;
     metadata.activity = {
       deviceType: msg.deviceType,
       focusedAgentId: msg.focusedAgentId,
@@ -4872,6 +4888,18 @@ export class Session {
       appVisible: msg.appVisible,
       appVisibilityChangedAt,
     };
+    if (msg.appVisible) {
+      const focusedAgentChanged = previousActivity?.focusedAgentId !== msg.focusedAgentId;
+      const focusedTerminalChanged = previousActivity?.focusedTerminalId !== focusedTerminalId;
+      if (focusedAgentChanged && msg.focusedAgentId) {
+        this.recordWorkspaceActivity(this.agentManager.getAgent(msg.focusedAgentId)?.workspaceId);
+      }
+      if (focusedTerminalChanged && focusedTerminalId) {
+        this.recordWorkspaceActivity(
+          this.terminalManager?.getTerminal(focusedTerminalId)?.workspaceId,
+        );
+      }
+    }
     if (msg.appVisible && focusedTerminalId) {
       void this.clearFocusedTerminalAttention(focusedTerminalId);
     }

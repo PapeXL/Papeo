@@ -171,6 +171,24 @@ untouched. Forging either makes a background resume look like the user read a wo
 agent worked in it just now, which rewrites the sidebar timestamp permanently — persisted
 `updatedAt` is what workspace `statusEnteredAt` is re-derived from on the next daemon start.
 
+The sidebar timestamp and the inactivity-archive clock are two clocks. `statusEnteredAt` is
+presentation. Workspace `lastActivityAt` is lifecycle. Do not stamp `lastActivityAt` from rename,
+label, pin, mark unread, clear attention, background resume, or a git refresh. Stamp it from a user
+prompt, a live turn end, terminal input, a client focusing the workspace, create, and restore.
+Missing clocks on old records become "now" once at daemon start so the first enabled sweep cannot
+archive everything quiet.
+
+### Inactivity auto-archive
+
+Host setting `autoArchiveAfterInactivityDays` (`null` = off). Same archive path as merged-PR
+auto-archive, with reason `inactivity`. Default suggested N is 7 days. The sweep runs from a daemon
+timer: first run 10 minutes after start, then hourly. It never runs from a client heartbeat.
+
+Skip pinned, currently focused, running, permission-waiting, unread-attention, heartbeat/schedule
+targets, working terminals, and workspaces already archiving. Dirty and ahead-of-origin still block.
+Unarchive stamps `lastActivityAt` to now so the next sweep cannot re-archive immediately. Unarchive
+does not restore provider background shells or Monitor watches.
+
 ## The subagents track
 
 The track is a pill at the foot of an agent's pane (`packages/app/src/subagents/track.tsx`): a count you can read at a glance, and a panel behind it — a popover on wide screens, a sheet on compact ones — holding the rows. It floats over the transcript rather than sitting in a band above the composer, so the timeline scrolls underneath it; `packages/app/src/panels/agent-tracks.tsx` owns that placement, and the pill frame is shared with the task list in `packages/app/src/composer/tracks.tsx`.

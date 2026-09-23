@@ -382,6 +382,7 @@ export function createWorkspaceProvisioningService(deps: {
         archivedAt: null,
         autoArchivedChangeRequestUrl,
         updatedAt: timestamp,
+        lastActivityAt: timestamp,
       };
     }
     if (checkout && (project.archivedAt || workspace.archivedAt)) {
