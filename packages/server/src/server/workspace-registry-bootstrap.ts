@@ -187,6 +187,7 @@ export async function bootstrapWorkspaceRegistries(options: {
               displayName: membership.workspaceDisplayName,
               createdAt,
               updatedAt,
+              lastActivityAt: updatedAt,
             }),
           ),
           options.projectRegistry.upsert(

@@ -100,6 +100,20 @@ const PersistedWorkspaceRecordSchema = z.object({
     .nullable()
     .optional()
     .transform((value) => value ?? null),
+  // Lifecycle activity clock. Separate from updatedAt / sidebar statusEnteredAt.
+  // COMPAT(workspaceLastActivityAt): added in v0.9.1, remove optional after 2027-03-23.
+  lastActivityAt: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null),
+  // Support/logging only. Not a History badge.
+  // COMPAT(autoArchiveReason): added in v0.9.1, remove optional after 2027-03-23.
+  autoArchiveReason: z
+    .enum(["merge", "inactivity"])
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null),
   labels: z.array(z.string()).optional(),
   untrustedSource: UntrustedWorkspaceSourceSchema.optional(),
 });
@@ -120,6 +134,7 @@ export interface WorkspaceMutationContext {
 
 export interface WorkspaceArchiveContext {
   autoArchivedChangeRequestUrl?: string;
+  autoArchiveReason?: "merge" | "inactivity";
 }
 
 export interface ProjectMutation {
@@ -575,6 +590,7 @@ export class FileBackedWorkspaceRegistry
       ...(context?.autoArchivedChangeRequestUrl
         ? { autoArchivedChangeRequestUrl: context.autoArchivedChangeRequestUrl }
         : {}),
+      ...(context?.autoArchiveReason ? { autoArchiveReason: context.autoArchiveReason } : {}),
     }));
     if (!workspace) return;
     await this.notifyMutation({ kind: "archive", workspaceId, workspace });
@@ -681,6 +697,8 @@ export function createPersistedWorkspaceRecord(input: {
   updatedAt: string;
   archivedAt?: string | null;
   autoArchivedChangeRequestUrl?: string | null;
+  lastActivityAt?: string | null;
+  autoArchiveReason?: "merge" | "inactivity" | null;
   pinnedAt?: string | null;
   labels?: string[];
   untrustedSource?: UntrustedWorkspaceSource;
@@ -695,6 +713,8 @@ export function createPersistedWorkspaceRecord(input: {
     mainRepoRoot: input.mainRepoRoot ?? null,
     archivedAt: input.archivedAt ?? null,
     autoArchivedChangeRequestUrl: input.autoArchivedChangeRequestUrl ?? null,
+    lastActivityAt: input.lastActivityAt === undefined ? input.createdAt : input.lastActivityAt,
+    autoArchiveReason: input.autoArchiveReason ?? null,
     pinnedAt: input.pinnedAt ?? null,
   });
 }

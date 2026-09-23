@@ -482,6 +482,7 @@ describe("archiveIfSafe", () => {
 
     expect(harness.options.archiveWorkspaceRecord).toHaveBeenCalledWith("ws-auto-archive", {
       autoArchivedChangeRequestUrl: "https://github.com/acme/repo/pull/123",
+      autoArchiveReason: "merge",
     });
   });
 
@@ -602,5 +603,103 @@ describe("archiveIfSafe", () => {
 
     expect(archivedWorkspaceIds.has(workspace.workspaceId)).toBe(false);
     expect(existsSync(worktree.worktreePath)).toBe(true);
+  });
+
+  test("inactivity archives a clean directory workspace without a pull request", async () => {
+    const harness = createHarness({
+      snapshot: createSnapshot({ pullRequest: null, git: { isPaseoOwnedWorktree: false } }),
+      isPaseoOwnedWorktreeCwd: async () => ({ allowed: false, worktreePath: CWD }),
+    });
+
+    await archiveIfSafe({
+      workspaceId: "ws-directory",
+      snapshot: harness.snapshot,
+      options: harness.options,
+      log: harness.log,
+      reason: "inactivity",
+      deps: harness.deps,
+    });
+
+    expect(harness.deps.isPaseoOwnedWorktreeCwd).not.toHaveBeenCalled();
+    expect(harness.deps.archiveByScope).toHaveBeenCalledWith(expect.any(Object), {
+      scope: { kind: "workspace", workspaceId: "ws-directory" },
+      requestId: "auto-archive-on-inactivity",
+    });
+  });
+
+  test("inactivity does nothing when the worktree is dirty", async () => {
+    const harness = createHarness({
+      snapshot: createSnapshot({ git: { isDirty: true } }),
+    });
+
+    await archiveIfSafe({
+      workspaceId: "ws-dirty",
+      snapshot: harness.snapshot,
+      options: harness.options,
+      log: harness.log,
+      reason: "inactivity",
+      deps: harness.deps,
+    });
+
+    expect(harness.deps.archiveByScope).not.toHaveBeenCalled();
+  });
+
+  test("inactivity does nothing when the worktree is ahead of origin", async () => {
+    const harness = createHarness({
+      snapshot: createSnapshot({ git: { aheadOfOrigin: 1 } }),
+    });
+
+    await archiveIfSafe({
+      workspaceId: "ws-ahead",
+      snapshot: harness.snapshot,
+      options: harness.options,
+      log: harness.log,
+      reason: "inactivity",
+      deps: harness.deps,
+    });
+
+    expect(harness.deps.archiveByScope).not.toHaveBeenCalled();
+  });
+
+  test("inactivity archives without a git snapshot", async () => {
+    const harness = createHarness();
+
+    await archiveIfSafe({
+      workspaceId: "ws-directory",
+      snapshot: null,
+      options: harness.options,
+      log: harness.log,
+      reason: "inactivity",
+      deps: harness.deps,
+    });
+
+    expect(harness.deps.archiveByScope).toHaveBeenCalledTimes(1);
+    expect(harness.options.archiveWorkspaceRecord).not.toHaveBeenCalled();
+  });
+
+  test("inactivity records the archive reason", async () => {
+    const harness = createHarness({
+      archiveByScope: async (dependencies) => {
+        await dependencies.archiveWorkspaceRecord("ws-directory");
+        return {
+          archivedAgentIds: [],
+          archivedWorkspaceIds: ["ws-directory"],
+          removedDirectory: false,
+        };
+      },
+    });
+
+    await archiveIfSafe({
+      workspaceId: "ws-directory",
+      snapshot: null,
+      options: harness.options,
+      log: harness.log,
+      reason: "inactivity",
+      deps: harness.deps,
+    });
+
+    expect(harness.options.archiveWorkspaceRecord).toHaveBeenCalledWith("ws-directory", {
+      autoArchiveReason: "inactivity",
+    });
   });
 });

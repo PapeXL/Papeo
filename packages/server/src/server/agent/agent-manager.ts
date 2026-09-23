@@ -324,6 +324,7 @@ export interface AgentManagerOptions {
   registry?: AgentStorage;
   onAgentAttention?: AgentAttentionCallback;
   onWorkspaceStateMayHaveChanged?: (params: { cwd: string }) => void;
+  onWorkspaceActivity?: (workspaceId: string) => void;
   durableTimelineStore?: AgentTimelineStore;
   terminalManager?: TerminalManager | null;
   mcpBaseUrl?: string;
@@ -752,6 +753,7 @@ export class AgentManager {
   private onAgentAttention?: AgentAttentionCallback;
   private onAgentArchived?: AgentArchivedCallback;
   private onWorkspaceStateMayHaveChanged?: (params: { cwd: string }) => void;
+  private onWorkspaceActivity?: (workspaceId: string) => void;
   private logger: Logger;
   private readonly rescueTimeouts: Required<AgentManagerRescueTimeouts>;
   private readonly beforeSteerUnavailableFallback?: AgentManagerOptions["beforeSteerUnavailableFallback"];
@@ -762,8 +764,7 @@ export class AgentManager {
     this.idFactory = options?.idFactory ?? (() => randomUUID());
     this.registry = options?.registry;
     this.durableTimelineStore = options?.durableTimelineStore;
-    this.onAgentAttention = options?.onAgentAttention;
-    this.onWorkspaceStateMayHaveChanged = options?.onWorkspaceStateMayHaveChanged;
+    this.assignWorkspaceCallbacks(options);
     this.mcpBaseUrl = options?.mcpBaseUrl ?? null;
     this.mcpAuthToken = options?.mcpAuthToken ?? null;
     this.configurePaseoTools(options);
@@ -789,6 +790,12 @@ export class AgentManager {
       providerDefinitions: options.providerDefinitions ?? {},
       clients: options.clients ?? {},
     });
+  }
+
+  private assignWorkspaceCallbacks(options: AgentManagerOptions): void {
+    this.onAgentAttention = options?.onAgentAttention;
+    this.onWorkspaceStateMayHaveChanged = options?.onWorkspaceStateMayHaveChanged;
+    this.onWorkspaceActivity = options.onWorkspaceActivity;
   }
 
   private configurePaseoTools(options: AgentManagerOptions): void {
@@ -990,6 +997,12 @@ export class AgentManager {
     return Array.from(this.agents.values())
       .filter((agent) => !agent.internal)
       .map((agent) => Object.assign({}, agent));
+  }
+
+  recordWorkspaceActivityForAgent(agentId: string): void {
+    const workspaceId = this.getAgent(agentId)?.workspaceId;
+    if (!workspaceId) return;
+    this.onWorkspaceActivity?.(workspaceId);
   }
 
   async listImportableSessions(
@@ -4341,6 +4354,7 @@ export class AgentManager {
           eventTurnId,
           isForegroundEvent,
           terminalDisposition,
+          fromHistory: options?.fromHistory,
         });
         return undefined;
       case "turn_failed":
@@ -4442,6 +4456,7 @@ export class AgentManager {
     eventTurnId: string | undefined;
     isForegroundEvent: boolean;
     terminalDisposition: ActiveTurnTerminalDisposition;
+    fromHistory?: boolean;
   }): void {
     const { agent, event, eventTurnId, isForegroundEvent, terminalDisposition } = params;
     this.logger.trace(
@@ -4456,6 +4471,9 @@ export class AgentManager {
       "agent.manager.turn.completed",
     );
     if (terminalDisposition === "stale") return;
+    if (!params.fromHistory) {
+      this.recordWorkspaceActivityForAgent(agent.id);
+    }
     if (event.usage) {
       agent.lastUsage = { ...agent.lastUsage, ...event.usage };
     }
@@ -4500,6 +4518,9 @@ export class AgentManager {
       "handleStreamEvent: turn_failed",
     );
     if (terminalDisposition === "stale") return;
+    if (!options?.fromHistory) {
+      this.recordWorkspaceActivityForAgent(agent.id);
+    }
     if (!isForegroundEvent && !agent.activeForegroundTurnId) {
       agent.lifecycle = "error";
     }
@@ -4542,6 +4563,9 @@ export class AgentManager {
       "agent.manager.turn.canceled",
     );
     if (terminalDisposition === "stale") return;
+    if (!options?.fromHistory) {
+      this.recordWorkspaceActivityForAgent(agent.id);
+    }
     if (!isForegroundEvent && !agent.activeForegroundTurnId && !agent.pendingReplacement) {
       agent.lifecycle = "idle";
     }

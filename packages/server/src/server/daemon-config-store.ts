@@ -24,6 +24,7 @@ interface SupportedMutableConfigPatch {
   removeProviders?: string[];
   metadataGeneration?: MutableDaemonConfig["metadataGeneration"];
   autoArchiveAfterMerge?: boolean;
+  autoArchiveAfterInactivityDays?: number | null;
   enableTerminalAgentHooks?: boolean;
   appendSystemPrompt?: string;
   terminalProfiles?: MutableDaemonConfig["terminalProfiles"];
@@ -179,6 +180,7 @@ const RELOADABLE_PATHS = [
   "daemon.git.maxProcessesPerSecond",
   "daemon.git.maxProcessConcurrency",
   "daemon.autoArchiveAfterMerge",
+  "daemon.autoArchiveAfterInactivityDays",
   "daemon.enableTerminalAgentHooks",
   "daemon.appendSystemPrompt",
   "daemon.terminalProfiles",
@@ -202,6 +204,7 @@ const PERSISTED_TO_MUTABLE_PATH = new Map<string, string>([
   ["daemon.git.maxProcessesPerSecond", "git.maxProcessesPerSecond"],
   ["daemon.git.maxProcessConcurrency", "git.maxProcessConcurrency"],
   ["daemon.autoArchiveAfterMerge", "autoArchiveAfterMerge"],
+  ["daemon.autoArchiveAfterInactivityDays", "autoArchiveAfterInactivityDays"],
   ["daemon.enableTerminalAgentHooks", "enableTerminalAgentHooks"],
   ["daemon.appendSystemPrompt", "appendSystemPrompt"],
   ["daemon.terminalProfiles", "terminalProfiles"],
@@ -265,6 +268,9 @@ function pickSupportedPatchFields(patch: MutableDaemonConfigPatch): SupportedMut
       : {}),
     ...(patch.autoArchiveAfterMerge !== undefined
       ? { autoArchiveAfterMerge: patch.autoArchiveAfterMerge }
+      : {}),
+    ...(patch.autoArchiveAfterInactivityDays !== undefined
+      ? { autoArchiveAfterInactivityDays: patch.autoArchiveAfterInactivityDays }
       : {}),
     ...(patch.enableTerminalAgentHooks !== undefined
       ? { enableTerminalAgentHooks: patch.enableTerminalAgentHooks }
@@ -654,6 +660,9 @@ function mergeMutableDaemonPatch(
   }
   if (patch.autoArchiveAfterMerge !== undefined) {
     next.autoArchiveAfterMerge = patch.autoArchiveAfterMerge;
+  }
+  if (patch.autoArchiveAfterInactivityDays !== undefined) {
+    next.autoArchiveAfterInactivityDays = patch.autoArchiveAfterInactivityDays;
   }
   if (patch.enableTerminalAgentHooks !== undefined) {
     next.enableTerminalAgentHooks = patch.enableTerminalAgentHooks;

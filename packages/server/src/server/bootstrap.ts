@@ -163,6 +163,11 @@ import {
   type ActiveWorkspaceRef,
 } from "./workspace-archive-service.js";
 import { setupAutoArchiveOnMerge } from "./auto-archive-on-merge/index.js";
+import { setupAutoArchiveOnInactivity } from "./auto-archive-on-inactivity/index.js";
+import {
+  backfillMissingWorkspaceActivityClocks,
+  stampWorkspaceActivity,
+} from "./workspace-activity.js";
 import { wrapSessionMessage, type SessionOutboundMessage } from "./messages.js";
 import type { TerminalManager } from "../terminal/terminal-manager.js";
 import { createConfiguredTerminalManager } from "../terminal/terminal-manager-factory.js";
@@ -403,6 +408,7 @@ export interface PaseoDaemonConfig {
     maxProcessConcurrency: number;
   };
   autoArchiveAfterMerge?: boolean;
+  autoArchiveAfterInactivityDays?: number | null;
   enableTerminalAgentHooks?: boolean;
   appendSystemPrompt?: string;
   terminalProfiles?: TerminalProfile[];
@@ -527,6 +533,16 @@ function resolveExpressTrustProxySetting(config: PaseoDaemonConfig): true | stri
   return config.trustedProxies ?? ["loopback"];
 }
 
+function assignOptionalInitialConfigField<K extends keyof MutableDaemonConfig>(
+  target: MutableDaemonConfig,
+  key: K,
+  value: MutableDaemonConfig[K] | undefined,
+): void {
+  if (value !== undefined) {
+    target[key] = value;
+  }
+}
+
 function createInitialMutableDaemonConfig(config: PaseoDaemonConfig): MutableDaemonConfig {
   const providers = config.providerOverrides ?? {};
 
@@ -557,14 +573,13 @@ function createInitialMutableDaemonConfig(config: PaseoDaemonConfig): MutableDae
     skills: { selection: config.skillSelection },
   };
 
-  if (config.terminalProfiles !== undefined) {
-    initialConfig.terminalProfiles = config.terminalProfiles;
-  }
-
-  if (config.agentProfiles !== undefined) {
-    initialConfig.agentProfiles = config.agentProfiles;
-  }
-
+  assignOptionalInitialConfigField(initialConfig, "terminalProfiles", config.terminalProfiles);
+  assignOptionalInitialConfigField(initialConfig, "agentProfiles", config.agentProfiles);
+  assignOptionalInitialConfigField(
+    initialConfig,
+    "autoArchiveAfterInactivityDays",
+    config.autoArchiveAfterInactivityDays,
+  );
   return initialConfig;
 }
 
@@ -934,6 +949,9 @@ export async function createPaseoDaemon(
     onWorkspaceStateMayHaveChanged: ({ cwd }) => {
       workspaceGitService.onWorkspaceStateMayHaveChanged(cwd);
     },
+    onWorkspaceActivity: (workspaceId) => {
+      void stampWorkspaceActivity(workspaceRegistry, workspaceId, new Date().toISOString());
+    },
     mcpAuthToken: agentMcpAuthToken,
     resolvePaseoToolPolicy: (provider) =>
       resolvePaseoToolPolicy(provider, daemonConfigStore.get().providers),
@@ -964,6 +982,7 @@ export async function createPaseoDaemon(
     logger,
   });
   await workspaceLabelService.initialize();
+  await backfillMissingWorkspaceActivityClocks(workspaceRegistry, new Date().toISOString());
   logger.info({ elapsed: elapsed() }, "Workspace registries bootstrapped");
   const teardownArchivedWorkspaceRuntime = (workspaceId: string): void => {
     scriptRuntimeStore.removeForWorkspace(workspaceId);
@@ -1346,6 +1365,46 @@ export async function createPaseoDaemon(
     archiveWorkspace: archiveScheduleWorkspaceExternal,
   });
   await scheduleService.start();
+  const inactivityAutoArchive = setupAutoArchiveOnInactivity({
+    paseoHome: config.paseoHome,
+    paseoWorktreesBaseRoot: config.worktreesRoot,
+    daemonConfigStore,
+    workspaceGitService,
+    github,
+    agentManager,
+    agentStorage,
+    terminalManager,
+    logger,
+    workspaceRegistry,
+    scheduleService,
+    findWorkspaceIdForCwd: findWorkspaceIdForCwdExternal,
+    listActiveWorkspaces: listActiveWorkspacesExternal,
+    getAutoArchivedChangeRequestUrl: async (workspaceId) =>
+      (await workspaceRegistry.get(workspaceId))?.autoArchivedChangeRequestUrl ?? null,
+    archiveWorkspaceRecord: archiveWorkspaceRecordExternal,
+    markWorkspaceArchiving: markWorkspaceArchivingExternal,
+    clearWorkspaceArchiving: clearWorkspaceArchivingExternal,
+    emitWorkspaceUpdatesForWorkspaceIds: emitWorkspaceUpdatesExternal,
+    listFocusedWorkspaceIds: () => {
+      const workspaceIds = new Set<string>();
+      for (const session of wsServer?.listSessions() ?? []) {
+        for (const activity of session.listClientActivities()) {
+          if (!activity.appVisible) continue;
+          if (activity.focusedAgentId) {
+            const workspaceId = agentManager.getAgent(activity.focusedAgentId)?.workspaceId;
+            if (workspaceId) workspaceIds.add(workspaceId);
+          }
+          if (activity.focusedTerminalId) {
+            const workspaceId = terminalManager.getTerminal(
+              activity.focusedTerminalId,
+            )?.workspaceId;
+            if (workspaceId) workspaceIds.add(workspaceId);
+          }
+        }
+      }
+      return workspaceIds;
+    },
+  });
   agentManager.setAgentArchivedCallback(async (agentId) => {
     try {
       await scheduleService.completeForAgent(agentId);
@@ -1806,6 +1865,7 @@ export async function createPaseoDaemon(
     await pluginRuntime.stopAllPlugins();
     terminalManager.killAll();
     await speechService.stop();
+    inactivityAutoArchive.stop();
     await scheduleService.stop().catch(() => undefined);
     await relayRuntime?.stop().catch(() => undefined);
     if (wsServer) {

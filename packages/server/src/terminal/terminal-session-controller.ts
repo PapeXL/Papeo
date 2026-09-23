@@ -99,6 +99,7 @@ export interface TerminalSessionControllerOptions {
   // Bytes queued on the client transport but not yet sent, or null when the
   // transport exposes no backpressure signal (e.g. the multiplexed relay socket).
   getClientBufferedAmount?: (source: object) => number | null;
+  onUserInput?: (workspaceId: string) => void;
 }
 
 interface TerminalWorkspaceRef {
@@ -146,6 +147,7 @@ export class TerminalSessionController {
   private readonly listTerminalWorkspaceRoots: () => Promise<readonly string[]>;
   private readonly clientSupportsWrapReflow: (source: object) => boolean;
   private readonly getClientBufferedAmount: (source: object) => number | null;
+  private readonly onUserInput: ((workspaceId: string) => void) | null;
 
   private readonly subscribedDirectories = new Map<string, TerminalDirectorySubscription>();
   private unsubscribeTerminalsChanged: (() => void) | null = null;
@@ -164,6 +166,7 @@ export class TerminalSessionController {
       (async () => (await this.listTerminalWorkspaceRefs()).map((workspace) => workspace.cwd));
     this.clientSupportsWrapReflow = options.clientSupportsWrapReflow ?? (() => false);
     this.getClientBufferedAmount = options.getClientBufferedAmount ?? (() => 0);
+    this.onUserInput = options.onUserInput ?? null;
   }
 
   start(): void {
@@ -761,6 +764,7 @@ export class TerminalSessionController {
       return;
     }
 
+    this.onUserInput?.(session.workspaceId);
     session.send(msg.message);
   }
 
