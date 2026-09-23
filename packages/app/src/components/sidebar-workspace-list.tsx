@@ -149,6 +149,7 @@ import { OpenInFileManagerMenuItem } from "@/workspace/open-in-file-manager/menu
 import { useLocalDaemonServerId } from "@/hooks/use-is-local-daemon";
 import type { HostBadgeModel } from "@/hosts/appearance";
 import { useHostBadges } from "@/hosts/use-host-badges";
+import { HostBadge } from "@/hosts/host-badge";
 import { useSidebarRowItems } from "@/components/sidebar/display-preferences/model";
 import { PullRequestStateIcon } from "@/git/pull-request-state-icon";
 
@@ -259,6 +260,13 @@ interface ProjectHeaderRowProps {
   onRemoveProject?: () => void;
   removeProjectStatus?: "idle" | "pending";
   dragHandleProps?: DraggableListDragHandleProps;
+  /**
+   * Set only when the project has exactly one host entry, so the badge can move up here
+   * instead of repeating on every workspace row underneath — see `hostCount` handling in
+   * `ProjectBlock`. A project spanning multiple hosts leaves this null and keeps the badge
+   * per workspace, since rows within it can each live on a different host.
+   */
+  hostBadge?: HostBadgeModel | null;
 }
 
 interface WorkspaceRowInnerProps {
@@ -868,6 +876,7 @@ function ProjectHeaderRow({
   onRemoveProject,
   removeProjectStatus = "idle",
   dragHandleProps,
+  hostBadge = null,
 }: ProjectHeaderRowProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
@@ -958,6 +967,7 @@ function ProjectHeaderRow({
           <Text style={styles.projectTitle} numberOfLines={1}>
             {displayName}
           </Text>
+          {hostBadge ? <HostBadge badge={hostBadge} /> : null}
         </View>
       </View>
       <ProjectRowTrailingActions
@@ -1620,6 +1630,15 @@ function ProjectBlock({
     enabled: selectionEnabled,
   });
 
+  // A project on exactly one host shows its badge once, on the header, instead of repeating
+  // it on every workspace row underneath — the two placements never disagree because there's
+  // only one host to report. A project spanning multiple hosts leaves the header badge off
+  // and puts it back on each workspace row, where it can differ row to row.
+  const singleHostBadge =
+    project.hosts.length === 1
+      ? (hostBadgeByServerId.get(project.hosts[0]!.serverId) ?? null)
+      : null;
+
   const renderWorkspaceRow = useCallback(
     (
       item: SidebarWorkspacePlacement,
@@ -1633,7 +1652,9 @@ function ProjectBlock({
         <MemoWorkspaceRowItem
           workspace={item}
           workspaceEntry={workspaceEntriesByKey.get(item.workspaceKey) ?? null}
-          hostBadge={hostBadgeByServerId.get(item.serverId) ?? null}
+          hostBadge={
+            project.hosts.length > 1 ? (hostBadgeByServerId.get(item.serverId) ?? null) : null
+          }
           shortcutNumber={shortcutIndexByWorkspaceKey.get(item.workspaceKey) ?? null}
           showShortcutBadge={showShortcutBadges}
           canCopyBranchName={project.projectKind === "git"}
@@ -1651,6 +1672,7 @@ function ProjectBlock({
     },
     [
       project.projectKind,
+      project.hosts,
       onToggleWorkspacePin,
       supportsPinningByServerId,
       activeWorkspaceSelection,
@@ -1814,6 +1836,7 @@ function ProjectBlock({
         onRemoveProject={handleRemoveProject}
         removeProjectStatus={isRemovingProject ? "pending" : "idle"}
         dragHandleProps={dragHandleProps}
+        hostBadge={singleHostBadge}
       />
 
       {projectChildren}
