@@ -179,16 +179,16 @@ export function runPluginClientBundle(
       if (!contribution.icon.trim()) throw new Error(`Sidebar item ${normalizedId} has no icon`);
       resolvePluginIcon(contribution.icon.trim());
       sidebarItemIds.add(normalizedId);
-      return register(
-        collector.sidebarItems,
-        {
-          id: normalizedId,
-          title: contribution.title.trim(),
-          icon: contribution.icon.trim(),
-          surface: requireId(contribution.surface, "sidebar surface id"),
-        },
-        () => sidebarItemIds.delete(normalizedId),
-      );
+      const item: PluginSidebarContribution = {
+        id: normalizedId,
+        title: contribution.title.trim(),
+        icon: contribution.icon.trim(),
+        surface: requireId(contribution.surface, "sidebar surface id"),
+      };
+      if (contribution.placement === "inline") {
+        item.placement = "inline";
+      }
+      return register(collector.sidebarItems, item, () => sidebarItemIds.delete(normalizedId));
     },
     addWorkspacePanel(contribution: PluginWorkspacePanelContribution) {
       const normalizedId = requireId(contribution.id, "workspace panel id");

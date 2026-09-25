@@ -197,6 +197,27 @@ describe("evaluatePluginClientBundle", () => {
     ]);
   });
 
+  it("collects an inline sidebar placement", () => {
+    const plugin = evaluatePluginClientBundle(
+      "example",
+      bundle(`
+        function Surface() { return null; }
+        plugin.addSurface("main", Surface);
+        plugin.addSidebarItem({
+          id: "main",
+          title: "Example",
+          icon: "Blocks",
+          surface: "main",
+          placement: "inline",
+        });
+      `),
+    );
+
+    expect(plugin.sidebarItems).toEqual([
+      { id: "main", title: "Example", icon: "Blocks", surface: "main", placement: "inline" },
+    ]);
+  });
+
   it("collects a declarative attachment source", () => {
     const plugin = evaluatePluginClientBundle(
       "linear",

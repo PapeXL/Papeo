@@ -1,9 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
-import type { PluginSurfaceProps } from "@getpaseo/plugin/client";
-import type { PluginTheme } from "@getpaseo/plugin";
 import { ChevronDown, X } from "lucide-react-native";
-import { useCallback, useMemo, useRef, useState, type ComponentType } from "react";
-import { Platform, Pressable, Text, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Pressable, Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { HeaderIconBadge } from "@/components/headers/header-icon-badge";
 import { HeaderToggleButton } from "@/components/headers/header-toggle-button";
@@ -14,15 +12,11 @@ import { useIsCompactFormFactor } from "@/constants/layout";
 import { useHostRuntimeClient, useHosts } from "@/runtime/host-runtime";
 import type { Theme } from "@/styles/theme";
 import type { ShortcutKey } from "@/utils/format-shortcut";
-import { usePluginHostNavigation } from "./host-navigation";
 import { resolvePluginIcon } from "./icons";
-import { toPluginTheme } from "./theme";
 import { useInstalledPlugin, usePluginInstallations } from "./registry";
 import { buildPluginSurfaceRoute } from "./routes";
 import { rememberPluginContributionHost } from "./contribution-host";
-import { SurfaceErrorBoundary } from "./surface-error-boundary";
-import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
-import { PluginRuntimeBoundary } from "./runtime-boundary";
+import { PluginSurfaceMount } from "./surface-renderer";
 import {
   getPluginSurfaceContributionServerIds,
   resolvePluginSurfaceContribution,
@@ -31,9 +25,6 @@ import {
 
 const EMPTY_SHORTCUT_KEYS: ShortcutKey[] = [];
 const mutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
-const pluginThemeMapping = (theme: Theme) => ({
-  theme: toPluginTheme(theme),
-});
 const ThemedX = withUnistyles(X);
 const ThemedChevronDown = withUnistyles(ChevronDown);
 
@@ -52,37 +43,6 @@ function PluginHeaderIcon({
 }
 
 const ThemedPluginHeaderIcon = withUnistyles(PluginHeaderIcon);
-
-function SurfaceRenderer({
-  Surface,
-  client,
-  plugin,
-  layout,
-  host,
-  theme,
-}: {
-  Surface: ComponentType<PluginSurfaceProps>;
-  client: DaemonClient;
-  plugin: NonNullable<ReturnType<typeof useInstalledPlugin>>;
-  layout: PluginSurfaceProps["layout"];
-  host: PluginSurfaceProps["host"];
-  theme: PluginTheme;
-}) {
-  const navigation = usePluginHostNavigation(host.id);
-  return (
-    <PluginRuntimeBoundary plugin={plugin} client={client}>
-      <Surface theme={theme} host={host} layout={layout} navigation={navigation} />
-    </PluginRuntimeBoundary>
-  );
-}
-
-const ThemedSurfaceRenderer = withUnistyles(SurfaceRenderer);
-
-function resolvePlatform(): PluginSurfaceProps["layout"]["platform"] {
-  if (Platform.OS === "ios") return "ios";
-  if (Platform.OS === "android") return "android";
-  return "web";
-}
 
 function PluginHostSwitcher({
   serverId,
@@ -179,8 +139,6 @@ export function PluginSurfaceScreen() {
     if (router.canGoBack()) router.back();
     else router.replace(`/h/${encodeURIComponent(serverId)}`);
   }, [serverId]);
-  const layout = useMemo(() => ({ compact, platform: resolvePlatform() }), [compact]);
-  const host = useMemo(() => ({ id: serverId, label: hostLabel }), [hostLabel, serverId]);
   const headerLeft = useMemo(
     () => (
       <>
@@ -225,20 +183,15 @@ export function PluginSurfaceScreen() {
       <ScreenHeader left={headerLeft} right={headerRight} />
       <View style={styles.body}>
         {plugin && surface && client ? (
-          <SurfaceErrorBoundary
+          <PluginSurfaceMount
             key={`${serverId}/${pluginId}/${identity?.kind}/${contributionId}`}
-            installation={plugin}
+            plugin={plugin}
             Surface={surface.Component}
-          >
-            <ThemedSurfaceRenderer
-              Surface={surface.Component}
-              client={client}
-              plugin={plugin}
-              host={host}
-              layout={layout}
-              uniProps={pluginThemeMapping}
-            />
-          </SurfaceErrorBoundary>
+            client={client}
+            hostId={serverId}
+            hostLabel={hostLabel}
+            compact={compact}
+          />
         ) : (
           <Text style={styles.errorText}>
             {plugin && surface ? "Plugin host is offline." : "This plugin surface is unavailable."}

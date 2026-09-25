@@ -267,6 +267,8 @@ errors are logged and do not interrupt host teardown.
 
 Paseo owns the route, screen header, Lucide icon validation, close action, theme DTO, layout facts,
 and render error boundary. The contributed component owns the complete body below the header.
+`placement: "inline"` keeps that body in the left sidebar instead of opening a screen, and sets
+`layout.sidebar`.
 
 RPC contracts validate inputs and outputs in both the app and plugin subprocess. `useRpc` returns a
 typed async function. Use the host-provided `@tanstack/react-query` for request state and caching;

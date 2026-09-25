@@ -27,6 +27,8 @@ export interface PluginHostProps {
   layout: {
     compact: boolean;
     platform: "ios" | "android" | "web";
+    /** True when the surface is mounted in the left sidebar instead of a page. */
+    sidebar?: boolean;
   };
 }
 
@@ -128,11 +130,15 @@ export interface PluginSurfaceContribution {
   Component: ComponentType<PluginSurfaceProps>;
 }
 
+export type PluginSidebarPlacement = "page" | "inline";
+
 export interface PluginSidebarContribution {
   id: string;
   title: string;
   icon: string;
   surface: string;
+  /** `page` (default) opens a full screen. `inline` keeps the surface in the left sidebar. */
+  placement?: PluginSidebarPlacement;
 }
 
 export type PluginTimelineTransformerContribution<

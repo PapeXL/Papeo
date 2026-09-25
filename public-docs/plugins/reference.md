@@ -696,13 +696,15 @@ export default function contribute(client: PluginClientContext) {
 }
 ```
 
+Omit `placement`, or set `page`, to open a screen. `placement: "inline"` mounts the surface in the left sidebar and sets `layout.sidebar`.
+
 `PluginSurfaceProps` contains:
 
 | Field        | Meaning                                                                                                                                                                                                                                                                                                                           |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `theme`      | Typed `PluginTheme` color tokens for the active Paseo theme.                                                                                                                                                                                                                                                                      |
 | `host`       | Selected host `id` and display `label`.                                                                                                                                                                                                                                                                                           |
-| `layout`     | `compact` and the `ios`, `android`, or `web` platform.                                                                                                                                                                                                                                                                            |
+| `layout`     | `compact`, the `ios`, `android`, or `web` platform, and `sidebar` when the surface is mounted in the left sidebar.                                                                                                                                                                                                                |
 | `navigation` | Optional client navigation. `openAgent({ agentId, serverId? })` and `openWorkspace({ workspaceId, serverId? })` open targets on `serverId`, or on the selected host when omitted. `openBrowser({ url, workspaceId, serverId? })` is available only on Electron; see [links and browsers](#external-links-and-workspace-browsers). |
 
 Paseo owns the route, header, close action, host picker, error boundary, and query client. The plugin owns the surface body.

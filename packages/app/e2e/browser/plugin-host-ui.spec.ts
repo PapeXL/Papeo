@@ -11,6 +11,7 @@ import {
 } from "../support/helpers/sidebar";
 
 const PLUGIN_ID = "plugin-host-ui-e2e";
+const INLINE_PLUGIN_ID = "plugin-inline-sidebar-e2e";
 
 const PLUGIN_SOURCE = `import { usePaseo } from "@getpaseo/plugin/client";
 import { Icon, Modal, useToast } from "@getpaseo/plugin/client/react-native";
@@ -65,6 +66,27 @@ export default function contribute(plugin) {
     title: "Host UI",
     icon: "PanelsTopLeft",
     surface: "main",
+  });
+  return () => {};
+}`;
+
+const INLINE_PLUGIN_SOURCE = `import React from "react";
+import { Text, View } from "react-native";
+
+function Surface({ layout }) {
+  return <View>
+    <Text>{layout.sidebar ? "Inline plugin surface" : "Paged plugin surface"}</Text>
+  </View>;
+}
+
+export default function contribute(plugin) {
+  plugin.addSurface("usage", Surface);
+  plugin.addSidebarItem({
+    id: "usage",
+    title: "Usage meters",
+    icon: "Gauge",
+    surface: "usage",
+    placement: "inline",
   });
   return () => {};
 }`;
@@ -146,6 +168,37 @@ test("plugin modal adapts its presentation and preserves host contexts", async (
     });
   } finally {
     await client.removePlugin(PLUGIN_ID).catch(() => undefined);
+    await client
+      .patchDaemonConfig({ pluginsEnabled: previousConfig.config.pluginsEnabled ?? false })
+      .catch(() => undefined);
+    await client.close().catch(() => undefined);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("inline sidebar placement mounts the surface in the left sidebar", async ({ page }) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "paseo-plugin-inline-sidebar-e2e-"));
+  const client = await connectNewWorkspaceDaemonClient({ ownProjects: false });
+  const previousConfig = await client.getDaemonConfig();
+  await writeFile(
+    path.join(directory, "paseo-plugin.json"),
+    JSON.stringify({ id: INLINE_PLUGIN_ID, requirements: pluginRequirements }),
+  );
+  await writeFile(path.join(directory, "index.client.tsx"), INLINE_PLUGIN_SOURCE);
+
+  try {
+    await client.patchDaemonConfig({ pluginsEnabled: true });
+    await client.installDirectoryPlugin(directory);
+    await useNonCompactLayout(page);
+    await gotoAppShell(page);
+
+    const widget = page.getByTestId(`plugin-sidebar-${INLINE_PLUGIN_ID}-usage`);
+    await expect(widget).toBeVisible({ timeout: 15_000 });
+    await expect(widget.getByText("Inline plugin surface", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Usage meters", exact: true })).toHaveCount(0);
+    await expect(page).not.toHaveURL(/\/plugin\//);
+  } finally {
+    await client.removePlugin(INLINE_PLUGIN_ID).catch(() => undefined);
     await client
       .patchDaemonConfig({ pluginsEnabled: previousConfig.config.pluginsEnabled ?? false })
       .catch(() => undefined);

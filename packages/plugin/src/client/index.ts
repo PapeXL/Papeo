@@ -13,6 +13,7 @@ export type {
   PluginSettingsScreenContribution,
   PluginSurfaceContribution,
   PluginSidebarContribution,
+  PluginSidebarPlacement,
   PluginTimelineTransformerContribution,
   PluginTimelineItemProps,
   PluginTimelineRendererContribution,
