@@ -269,6 +269,7 @@ import {
   ProjectDirectoryRequestError,
 } from "./project-directory-service.js";
 import { runGitCommand } from "../utils/run-git-command.js";
+import { readProjectDatabaseName } from "../utils/spy-database.js";
 import { CreateAgentLifecycleDispatch } from "./agent/create-agent-lifecycle-dispatch.js";
 import { resolveWorktreeSourceCwd } from "./workspace-source.js";
 
@@ -5536,6 +5537,12 @@ export class Session {
         ? basename(workspace.worktreeRoot)
         : undefined;
 
+    const projectRootPath = resolvedProjectRecord?.rootPath ?? workspace.cwd;
+
+    // A project fact: one dev system, one database, however many workspaces sit under it.
+    // Read from the project root, so a worktree reports the same database as its project.
+    const projectDatabaseName = (await readProjectDatabaseName(projectRootPath)) ?? undefined;
+
     return {
       id: workspace.workspaceId,
       projectId: workspace.projectId,
@@ -5544,9 +5551,10 @@ export class Session {
         : workspace.projectId,
       projectCustomName: resolvedProjectRecord?.customName ?? null,
       projectCustomIconRevision: resolvedProjectRecord?.customIconRevision ?? null,
-      projectRootPath: resolvedProjectRecord?.rootPath ?? workspace.cwd,
+      projectRootPath,
       workspaceDirectory: workspace.cwd,
       worktreeSlug,
+      projectDatabaseName,
       projectKind: (resolvedProjectRecord?.kind ?? "directory") === "git" ? "git" : "non_git",
       workspaceKind: workspace.kind,
       name: resolveWorkspaceDisplayName(workspace),

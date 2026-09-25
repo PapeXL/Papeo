@@ -3,6 +3,7 @@ import { createInMemoryKeyValueStorage } from "./fakes";
 import { APP_SETTINGS_KEY, SETTINGS_MIGRATIONS_KEY } from "./keys";
 import { migrateAppSettings } from "./migrations";
 import { DEFAULT_CLIENT_SETTINGS, type AppSettings, type SendBehavior } from "./storage";
+import type { SidebarRowItems } from "@/components/sidebar/display-preferences/row-items";
 
 function settingsWith(sendBehavior: SendBehavior): AppSettings {
   return { ...DEFAULT_CLIENT_SETTINGS, sendBehavior };
@@ -25,6 +26,18 @@ function storedContentFontSize(storage: Storage): number | undefined {
   return raw === undefined ? undefined : JSON.parse(raw).contentFontSize;
 }
 
+function storedRowItems(storage: Storage): SidebarRowItems | undefined {
+  const raw = storage.entries.get(APP_SETTINGS_KEY);
+  return raw === undefined ? undefined : JSON.parse(raw).sidebarRowItems;
+}
+
+function withBranch(branch: boolean): AppSettings {
+  return {
+    ...DEFAULT_CLIENT_SETTINGS,
+    sidebarRowItems: { ...DEFAULT_CLIENT_SETTINGS.sidebarRowItems, branch },
+  };
+}
+
 /** An in-memory storage whose write to `failingKey` always throws, as a full disk would. */
 function createFailingWriteStorage(failingKey: string): Storage {
   const storage = createInMemoryKeyValueStorage();
@@ -45,7 +58,7 @@ describe("migrateAppSettings", () => {
 
     expect(result.sendBehavior).toBe("steer");
     expect(storedSendBehavior(storage)).toBe("steer");
-    expect(appliedIds(storage)).toEqual(["steer-default"]);
+    expect(appliedIds(storage)).toEqual(["steer-default", "branch-with-database"]);
   });
 
   it("leaves interrupt alone once the migration has run", async () => {
@@ -64,7 +77,7 @@ describe("migrateAppSettings", () => {
 
     expect(result.sendBehavior).toBe("queue");
     expect(storage.entries.has(APP_SETTINGS_KEY)).toBe(false);
-    expect(appliedIds(storage)).toEqual(["steer-default"]);
+    expect(appliedIds(storage)).toEqual(["steer-default", "branch-with-database"]);
   });
 
   it("marks itself applied on a fresh install without rewriting settings", async () => {
@@ -73,7 +86,7 @@ describe("migrateAppSettings", () => {
     await migrateAppSettings(settingsWith("steer"), storage);
 
     expect(storage.entries.has(APP_SETTINGS_KEY)).toBe(false);
-    expect(appliedIds(storage)).toEqual(["steer-default"]);
+    expect(appliedIds(storage)).toEqual(["steer-default", "branch-with-database"]);
   });
 
   it("keeps unknown migration ids written by a newer client", async () => {
@@ -83,7 +96,11 @@ describe("migrateAppSettings", () => {
 
     await migrateAppSettings(settingsWith("interrupt"), storage);
 
-    expect(appliedIds(storage)).toEqual(["some-later-migration", "steer-default"]);
+    expect(appliedIds(storage)).toEqual([
+      "some-later-migration",
+      "steer-default",
+      "branch-with-database",
+    ]);
   });
 
   it("migrates every mobile 15px content preference to 16px", async () => {
@@ -94,7 +111,11 @@ describe("migrateAppSettings", () => {
 
     expect(result.contentFontSize).toBe(16);
     expect(storedContentFontSize(storage)).toBe(16);
-    expect(appliedIds(storage)).toEqual(["steer-default", "mobile-content-16"]);
+    expect(appliedIds(storage)).toEqual([
+      "steer-default",
+      "mobile-content-16",
+      "branch-with-database",
+    ]);
   });
 
   it("leaves a 15px web content preference unchanged", async () => {
@@ -105,7 +126,7 @@ describe("migrateAppSettings", () => {
 
     expect(result.contentFontSize).toBe(15);
     expect(storedContentFontSize(storage)).toBeUndefined();
-    expect(appliedIds(storage)).toEqual(["steer-default"]);
+    expect(appliedIds(storage)).toEqual(["steer-default", "branch-with-database"]);
   });
 
   it("lets a mobile user choose 15px after the default migration ran", async () => {
@@ -144,6 +165,25 @@ describe("migrateAppSettings", () => {
     const result = await migrateAppSettings(settingsWith("steer"), recovered);
 
     expect(result.sendBehavior).toBe("steer");
-    expect(appliedIds(recovered)).toEqual(["steer-default"]);
+    expect(appliedIds(recovered)).toEqual(["steer-default", "branch-with-database"]);
+  });
+
+  it("turns a stored branch item back on beside the database", async () => {
+    const storage = createInMemoryKeyValueStorage();
+    const settings = withBranch(false);
+
+    const result = await migrateAppSettings(settings, storage);
+
+    expect(result.sidebarRowItems.branch).toBe(true);
+    expect(storedRowItems(storage)?.branch).toBe(true);
+  });
+
+  it("lets someone switch the branch off again once the migration has run", async () => {
+    const storage = createInMemoryKeyValueStorage();
+    await migrateAppSettings(withBranch(false), storage);
+
+    const result = await migrateAppSettings(withBranch(false), storage);
+
+    expect(result.sidebarRowItems.branch).toBe(false);
   });
 });

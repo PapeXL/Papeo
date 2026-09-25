@@ -1109,6 +1109,7 @@ export const ko: TranslationResources = {
       show: {
         label: "표시 항목",
         branch: "브랜치",
+        database: "데이터베이스",
         project: "프로젝트",
         host: "호스트",
         changeRequest: "풀 리퀘스트",

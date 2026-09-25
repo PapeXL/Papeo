@@ -1119,6 +1119,7 @@ export const ru: TranslationResources = {
       show: {
         label: "Показывать",
         branch: "Ветка",
+        database: "База данных",
         project: "Проект",
         host: "Хост",
         changeRequest: "PR",

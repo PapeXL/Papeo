@@ -1110,6 +1110,7 @@ export const en = {
       show: {
         label: "Show",
         branch: "Branch",
+        database: "Database",
         project: "Project",
         host: "Host",
         changeRequest: "Pull request",

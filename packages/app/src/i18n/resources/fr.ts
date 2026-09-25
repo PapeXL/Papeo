@@ -1137,6 +1137,7 @@ export const fr: TranslationResources = {
       show: {
         label: "Afficher",
         branch: "Branche",
+        database: "Base de données",
         project: "Projet",
         host: "Hôte",
         changeRequest: "Pull request",

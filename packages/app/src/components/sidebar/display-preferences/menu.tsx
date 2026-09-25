@@ -15,6 +15,7 @@ import {
   CircleCheck,
   CircleDashed,
   Clock,
+  Database,
   Diff,
   EyeOff,
   Folder,
@@ -100,6 +101,7 @@ const TITLE_SOURCE_ICONS: Record<WorkspaceTitleSource, OptionIcon> = {
 // configures name each item the same way twice.
 const ROW_ITEM_ICONS: Record<SidebarRowItem, OptionIcon> = {
   branch: withUnistyles(GitBranch),
+  database: withUnistyles(Database),
   project: withUnistyles(Folder),
   host: withUnistyles(Server),
   changeRequest: withUnistyles(GitPullRequest),
@@ -136,6 +138,7 @@ const TITLE_SOURCE_LABEL_KEYS: Record<WorkspaceTitleSource, string> = {
 
 const ROW_ITEM_LABEL_KEYS: Record<SidebarRowItem, string> = {
   branch: "sidebar.display.show.branch",
+  database: "sidebar.display.show.database",
   project: "sidebar.display.show.project",
   host: "sidebar.display.show.host",
   changeRequest: "sidebar.display.show.changeRequest",

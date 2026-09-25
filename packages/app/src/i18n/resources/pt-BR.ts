@@ -1128,6 +1128,7 @@ export const ptBR: TranslationResources = {
       show: {
         label: "Mostrar",
         branch: "Branch",
+        database: "Banco de dados",
         project: "Projeto",
         host: "Host",
         changeRequest: "Pull request",

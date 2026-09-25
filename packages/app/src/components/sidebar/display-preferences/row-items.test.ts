@@ -6,9 +6,10 @@ import {
 } from "./row-items";
 
 describe("parseSidebarRowItems", () => {
-  it("shows operational metadata but hides identity badges by default", () => {
+  it("shows what a workspace works on and hides the project name by default", () => {
     expect(DEFAULT_SIDEBAR_ROW_ITEMS).toEqual({
-      branch: false,
+      branch: true,
+      database: true,
       project: false,
       host: true,
       changeRequest: true,

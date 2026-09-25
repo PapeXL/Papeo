@@ -111,6 +111,7 @@ export interface WorkspaceDescriptor {
   projectRootPath: string;
   workspaceDirectory: string;
   worktreeSlug?: WorkspaceDescriptorPayload["worktreeSlug"];
+  projectDatabaseName?: WorkspaceDescriptorPayload["projectDatabaseName"];
   projectKind: WorkspaceDescriptorPayload["projectKind"];
   workspaceKind: WorkspaceDescriptorPayload["workspaceKind"];
   name: string;
@@ -148,6 +149,7 @@ export function normalizeWorkspaceDescriptor(
     // usable directory" (older daemons may omit it; the wire field is optional).
     workspaceDirectory: normalizeWorkspacePath(payload.workspaceDirectory) ?? "",
     worktreeSlug: payload.worktreeSlug,
+    projectDatabaseName: payload.projectDatabaseName,
     projectKind: payload.projectKind,
     workspaceKind: payload.workspaceKind,
     name: payload.name,

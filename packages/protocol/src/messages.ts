@@ -3987,6 +3987,12 @@ export const WorkspaceDescriptorPayloadSchema = z
     // COMPAT(worktreeSlug): added in v0.2.6, remove optional after 2027-01-31.
     // Present only for Paseo-owned worktrees; this is the basename of their root directory.
     worktreeSlug: z.string().optional(),
+    // The database the project talks to, read from a SPY dev system's config/config.inc.xml
+    // under the project root. A project fact, carried on every workspace of that project so a
+    // consumer with a workspace never has to resolve the project first. Added in v0.9.2.
+    // Absent for a project without such a file, and on older daemons; consumers draw nothing
+    // rather than a placeholder.
+    projectDatabaseName: z.string().optional(),
     projectKind: z.enum(["git", "non_git", "directory"]),
     // COMPAT(workspaces): keep legacy directory workspace kind parseable.
     workspaceKind: z.enum(["directory", "local_checkout", "checkout", "worktree"]),

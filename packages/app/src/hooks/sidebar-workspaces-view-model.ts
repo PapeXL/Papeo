@@ -45,6 +45,9 @@ export interface SidebarWorkspaceEntry extends SidebarStatusWorkspacePlacement {
   labels?: string[];
   // Checkout branch (null when not a git checkout or detached HEAD).
   currentBranch: string | null;
+  // Database the workspace's project is configured against. Every workspace of a project
+  // reports the same value. Absent on daemons that don't report one.
+  projectDatabaseName?: string | null;
   archivingAt: string | null;
   diffStat: { additions: number; deletions: number } | null;
   prHint: PrHint | null;
@@ -169,6 +172,7 @@ export function createSidebarWorkspaceEntry(input: {
     pinnedAt: input.workspace.pinnedAt,
     labels: input.workspace.labels ?? EMPTY_WORKSPACE_LABELS,
     currentBranch: normalizeCurrentBranch(input.workspace.gitRuntime?.currentBranch),
+    projectDatabaseName: input.workspace.projectDatabaseName ?? null,
     statusBucket: effectiveStatus.status,
     statusEnteredAt: effectiveStatus.enteredAt,
     archivingAt: input.workspace.archivingAt,

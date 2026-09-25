@@ -150,6 +150,11 @@ import { useLocalDaemonServerId } from "@/hooks/use-is-local-daemon";
 import type { HostBadgeModel } from "@/hosts/appearance";
 import { useHostBadges } from "@/hosts/use-host-badges";
 import { HostBadge } from "@/hosts/host-badge";
+import { ProjectDatabaseLine } from "@/components/sidebar/workspace-meta-row";
+import {
+  selectProjectDatabaseLine,
+  selectProjectDatabaseName,
+} from "@/components/sidebar/workspace-meta-row/database-line";
 import { useSidebarRowItems } from "@/components/sidebar/display-preferences/model";
 import { PullRequestStateIcon } from "@/git/pull-request-state-icon";
 
@@ -267,6 +272,8 @@ interface ProjectHeaderRowProps {
    * per workspace, since rows within it can each live on a different host.
    */
   hostBadge?: HostBadgeModel | null;
+  /** The project's database, when it declares one and the row item is on. */
+  databaseName?: string | null;
 }
 
 interface WorkspaceRowInnerProps {
@@ -855,6 +862,32 @@ function NewWorkspaceGhostRow({
   );
 }
 
+/**
+ * The project name, the host badge beside it, and the database under it. Its own component so
+ * the header row stays flat: the column wrapper exists only to carry the database line.
+ */
+function ProjectHeaderTitle({
+  displayName,
+  hostBadge,
+  databaseName,
+}: {
+  displayName: string;
+  hostBadge: HostBadgeModel | null;
+  databaseName: string | null;
+}) {
+  return (
+    <View style={styles.projectTitleColumn}>
+      <View style={styles.projectTitleGroup}>
+        <Text style={styles.projectTitle} numberOfLines={1}>
+          {displayName}
+        </Text>
+        {hostBadge ? <HostBadge badge={hostBadge} /> : null}
+      </View>
+      {databaseName ? <ProjectDatabaseLine name={databaseName} /> : null}
+    </View>
+  );
+}
+
 function ProjectHeaderRow({
   project,
   displayName,
@@ -877,6 +910,7 @@ function ProjectHeaderRow({
   removeProjectStatus = "idle",
   dragHandleProps,
   hostBadge = null,
+  databaseName = null,
 }: ProjectHeaderRowProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
@@ -963,12 +997,11 @@ function ProjectHeaderRow({
           isArchiving={isArchiving}
         />
 
-        <View style={styles.projectTitleGroup}>
-          <Text style={styles.projectTitle} numberOfLines={1}>
-            {displayName}
-          </Text>
-          {hostBadge ? <HostBadge badge={hostBadge} /> : null}
-        </View>
+        <ProjectHeaderTitle
+          displayName={displayName}
+          hostBadge={hostBadge}
+          databaseName={databaseName}
+        />
       </View>
       <ProjectRowTrailingActions
         projectViewKey={project.viewKey}
@@ -1639,6 +1672,22 @@ function ProjectBlock({
       ? (hostBadgeByServerId.get(project.hosts[0]!.serverId) ?? null)
       : null;
 
+  // The database belongs to the project, and every workspace under it reports the same value,
+  // so the header asks its workspaces once instead of every row drawing the same name.
+  const rowItems = useSidebarRowItems();
+  const projectDatabaseLine = useMemo(
+    () =>
+      selectProjectDatabaseLine({
+        databaseName: selectProjectDatabaseName(
+          project.workspaces.map(
+            (item) => workspaceEntriesByKey.get(item.workspaceKey)?.projectDatabaseName ?? null,
+          ),
+        ),
+        visible: rowItems,
+      }),
+    [project.workspaces, rowItems, workspaceEntriesByKey],
+  );
+
   const renderWorkspaceRow = useCallback(
     (
       item: SidebarWorkspacePlacement,
@@ -1837,6 +1886,7 @@ function ProjectBlock({
         removeProjectStatus={isRemovingProject ? "pending" : "idle"}
         dragHandleProps={dragHandleProps}
         hostBadge={singleHostBadge}
+        databaseName={projectDatabaseLine}
       />
 
       {projectChildren}
@@ -2626,6 +2676,13 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[1],
+    minWidth: 0,
+  },
+  // A column, so the database can sit under the project name. A project without a database
+  // keeps the single-line header it always had.
+  projectTitleColumn: {
+    flexDirection: "column",
+    alignItems: "flex-start",
     flex: 1,
     minWidth: 0,
   },

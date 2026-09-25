@@ -56,6 +56,7 @@ export function selectMetaRowItems(input: {
   } = input;
   const items: MetaRowItem[] = [];
 
+  // The database is not here. It is a line of its own under this one — see `database-line.ts`.
   if (currentBranch && visible.branch) {
     items.push({ kind: "branch", name: currentBranch });
   }

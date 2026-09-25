@@ -2,7 +2,7 @@ import { Fragment, useCallback, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View, type GestureResponderEvent } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { ExternalLink, Folder, GitBranch, Globe } from "lucide-react-native";
+import { Database, ExternalLink, Folder, GitBranch, Globe } from "lucide-react-native";
 import {
   workspaceLabelKey,
   type WorkspaceLabelDefinition,
@@ -34,6 +34,7 @@ export {
  */
 const META_ICON_SIZE = HOST_BADGE_ICON_SIZE;
 
+const ThemedDatabase = withUnistyles(Database);
 const ThemedExternalLink = withUnistyles(ExternalLink);
 const ThemedFolder = withUnistyles(Folder);
 const ThemedGitBranch = withUnistyles(GitBranch);
@@ -132,8 +133,30 @@ function MetaItemNode({
   return <ServiceItem summary={item.summary} />;
 }
 
-function IdentityItem({ kind, name }: { kind: "branch" | "project"; name: string }) {
-  const Icon = kind === "branch" ? ThemedGitBranch : ThemedFolder;
+const IDENTITY_ICONS = {
+  branch: ThemedGitBranch,
+  project: ThemedFolder,
+} as const;
+
+/**
+ * The database line on a project header. It borrows the meta line's ink and glyph size, so the
+ * project's second line and a workspace's second line read as the same kind of text.
+ */
+export function ProjectDatabaseLine({ name }: { name: string }) {
+  return (
+    <View style={styles.identityItem} testID="sidebar-project-database">
+      <View style={styles.identityIcon}>
+        <ThemedDatabase size={META_ICON_SIZE} uniProps={mutedMapping} />
+      </View>
+      <Text style={styles.identityText} numberOfLines={1}>
+        {name}
+      </Text>
+    </View>
+  );
+}
+
+function IdentityItem({ kind, name }: { kind: keyof typeof IDENTITY_ICONS; name: string }) {
+  const Icon = IDENTITY_ICONS[kind];
   return (
     <View style={styles.identityItem} testID={`sidebar-workspace-${kind}`}>
       <View style={styles.identityIcon}>

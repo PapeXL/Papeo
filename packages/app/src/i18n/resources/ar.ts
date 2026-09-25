@@ -1102,6 +1102,7 @@ export const ar: TranslationResources = {
       show: {
         label: "إظهار",
         branch: "الفرع",
+        database: "قاعدة البيانات",
         project: "المشروع",
         host: "المضيف",
         changeRequest: "طلب السحب",

@@ -17,6 +17,13 @@ const STEER_DEFAULT_MIGRATION = "steer-default";
 const MOBILE_CONTENT_16_MIGRATION = "mobile-content-16";
 
 /**
+ * The branch item was off by default until the database item joined it on the row, and the old
+ * default was materialized into storage on first load. The two belong together — which code,
+ * which data — so this turns the branch back on exactly once. Switching it off afterwards sticks.
+ */
+const BRANCH_WITH_DATABASE_MIGRATION = "branch-with-database";
+
+/**
  * Brings stored settings up to date, returning what the caller should use. Owns both writes so
  * the marker can only ever be written after the settings it describes: a failed marker write
  * leaves the migration to re-run harmlessly, while a failed settings write must leave the marker
@@ -47,6 +54,14 @@ export async function migrateAppSettings(
   if (options.native && !applied.has(MOBILE_CONTENT_16_MIGRATION)) {
     migrated = migrated.contentFontSize === 15 ? { ...migrated, contentFontSize: 16 } : migrated;
     applied.add(MOBILE_CONTENT_16_MIGRATION);
+    addedMigration = true;
+  }
+
+  if (!applied.has(BRANCH_WITH_DATABASE_MIGRATION)) {
+    migrated = migrated.sidebarRowItems.branch
+      ? migrated
+      : { ...migrated, sidebarRowItems: { ...migrated.sidebarRowItems, branch: true } };
+    applied.add(BRANCH_WITH_DATABASE_MIGRATION);
     addedMigration = true;
   }
 

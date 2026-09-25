@@ -14,6 +14,7 @@
 
 export const SIDEBAR_ROW_ITEMS = [
   "branch",
+  "database",
   "project",
   "host",
   "changeRequest",
@@ -25,9 +26,16 @@ export type SidebarRowItem = (typeof SIDEBAR_ROW_ITEMS)[number];
 
 export type SidebarRowItems = Record<SidebarRowItem, boolean>;
 
-/** The persisted record is merged over these explicit product defaults. */
+/**
+ * The persisted record is merged over these explicit product defaults.
+ *
+ * Branch and database are both on. They are the pair that says what a workspace is working on:
+ * which code, and which data. The project name stays off, because the project header above the
+ * row already carries it.
+ */
 export const DEFAULT_SIDEBAR_ROW_ITEMS: SidebarRowItems = {
-  branch: false,
+  branch: true,
+  database: true,
   project: false,
   host: true,
   changeRequest: true,
