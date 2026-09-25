@@ -3,6 +3,7 @@ import { withOutput } from "../../output/index.js";
 import { addJsonAndDaemonHostOptions } from "../../utils/command-options.js";
 import { runArchiveCommand } from "./archive.js";
 import { runCreateCommand } from "./create.js";
+import { runLabelCommand } from "./label.js";
 import { runLsCommand } from "./ls.js";
 import { runRenameCommand } from "./rename.js";
 import { runSetupCommand } from "./setup.js";
@@ -59,6 +60,18 @@ export function createWorkspaceCommand(): Command {
       .description("Archive a workspace and everything it owns")
       .argument("<workspace-id>", "Workspace id"),
   ).action(withOutput(runArchiveCommand));
+
+  addJsonAndDaemonHostOptions(
+    workspace
+      .command("label")
+      .description("Assign a label to a workspace")
+      .argument("<name>", "Label name")
+      .option(
+        "--workspace <id>",
+        "Target workspace (default: the calling agent's workspace, or $PASEO_WORKSPACE_ID)",
+      )
+      .option("--remove", "Unassign the label instead of assigning it"),
+  ).action(withOutput(runLabelCommand));
 
   return workspace;
 }
