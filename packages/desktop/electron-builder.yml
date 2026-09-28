@@ -1,11 +1,14 @@
 npmRebuild: false
-appId: sh.paseo.desktop
-productName: Paseo
-executableName: Paseo
+# Fork build. A distinct appId, productName and URL scheme are what let this install
+# beside a stock Paseo install instead of upgrading over it. See src/fork-identity.ts
+# for the matching data-home and port isolation.
+appId: sh.papeo.desktop
+productName: Papeo
+executableName: Papeo
 protocols:
-  - name: Paseo agent link
+  - name: Papeo agent link
     schemes:
-      - paseo
+      - papeo
 afterPack: ./scripts/after-pack.js
 afterSign: ./scripts/after-sign.js
 directories:
@@ -31,10 +34,9 @@ extraResources:
     to: app-dist
   - from: assets/editor-targets
     to: editor-target-icons
-publish:
-  provider: github
-  owner: getpaseo
-  repo: paseo
+# No publish target. Upstream's would make this fork auto-update itself into a stock
+# Paseo release; without app-update.yml the updater stays inert.
+publish: null
 mac:
   artifactName: "Paseo-${version}-${arch}.${ext}"
   minimumSystemVersion: "13.0.0"
@@ -80,11 +82,11 @@ appImage:
   # version stays discoverable via the release tag and the in-app version.
   artifactName: "Paseo-${arch}.${ext}"
 win:
-  artifactName: "Paseo-Setup-${version}-${arch}.${ext}"
+  artifactName: "Papeo-Setup-${version}-${arch}.${ext}"
   icon: assets/icon.ico
   extraResources:
-    - from: bin/paseo.cmd
-      to: bin/paseo.cmd
+    - from: bin/papeo.cmd
+      to: bin/papeo.cmd
   target:
     - target: nsis
       arch:
@@ -98,3 +100,4 @@ nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+  shortcutName: Papeo

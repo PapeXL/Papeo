@@ -106,12 +106,20 @@ import {
   type AgentDeepLinkTarget,
 } from "@getpaseo/protocol/agent-deep-link";
 import { AgentNavigationInbox, parseAgentDeepLinkFromArgv } from "./agent-navigation.js";
+import { applyForkIsolation, FORK_PRODUCT_NAME, FORK_URL_SCHEME } from "./fork-identity.js";
+
+// Must run before anything reads PASEO_HOME. Windows never reaches the login-shell env
+// resolver (login-shell-env.ts:395 throws there), so nothing overwrites this later.
+applyForkIsolation();
 
 const DEV_SERVER_URL = process.env.EXPO_DEV_URL ?? "http://localhost:8081";
-const APP_SCHEME = "paseo";
+const APP_SCHEME = FORK_URL_SCHEME;
 const PASEO_DEBUG = process.env.PASEO_DEBUG === "1";
 const DISABLE_SINGLE_INSTANCE_LOCK = process.env.PASEO_DISABLE_SINGLE_INSTANCE_LOCK === "1";
-const APP_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || "Paseo";
+// app.setName drives app.getPath("userData"). "Paseo" here would share the stock install's
+// userData, and with it the remembered host — the fork would silently talk to the stock
+// daemon on 6767 and none of the fork's daemon-side features would appear.
+const APP_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || FORK_PRODUCT_NAME;
 const DESKTOP_WINDOW_CHROME_MODE = resolveDesktopWindowChromeMode({
   platform: process.platform,
   override: process.env.PASEO_DESKTOP_WINDOW_CONTROLS,
