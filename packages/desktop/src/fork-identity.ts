@@ -32,5 +32,9 @@ export function applyForkIsolation(env: NodeJS.ProcessEnv = process.env): void {
   writeFileSync(configPath, `${JSON.stringify(seed, null, 2)}\n`);
 }
 
-/** Deep-link scheme. Must match `protocols.schemes` in electron-builder.yml. */
+/**
+ * OS-level deep-link scheme, mirroring `protocols.schemes` in electron-builder.yml so the
+ * fork does not claim stock Paseo's links. Deliberately NOT the renderer's protocol scheme
+ * (main.ts APP_SCHEME), which must stay "paseo" for the daemon's CORS allowlist.
+ */
 export const FORK_URL_SCHEME = "papeo";
