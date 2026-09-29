@@ -2068,6 +2068,8 @@ export const fr: TranslationResources = {
       fallbackHint: "S’il est indisponible, Paseo utilise un autre modèle disponible",
       docs: "Documentation",
       saveError: "Impossible de mettre à jour la génération de métadonnées",
+      branchPrefix: "Préfixe de branche",
+      branchPrefixHint: "Ajouté au début de chaque nom de branche généré, par exemple dp/",
     },
     general: {
       title: "Général",

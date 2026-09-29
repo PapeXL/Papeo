@@ -236,7 +236,8 @@ snapshot so a mixed edit can apply its live subset and still name the paths that
     // `extends` (one of the built-ins or `"acp"`) and `label`. See `provider-launch-config.ts`.
     providers: Record<providerId, ProviderOverride>,
     metadataGeneration: {
-      providers: [{ provider, model?, thinkingOptionId? }]
+      providers: [{ provider, model?, thinkingOptionId? }],
+      branchPrefix?: string  // added in code to every generated branch name, e.g. "dp/"
     }
   },
   pluginsEnabled: boolean,

@@ -84,6 +84,16 @@ async function buildPrompt(
   });
 }
 
+// The prefix is applied in code, not asked of the model, so every generated
+// branch gets it even when a project replaces the branch style instructions.
+export function applyBranchPrefix(branch: string, prefix: string | undefined): string {
+  const trimmedPrefix = prefix?.trim();
+  if (!trimmedPrefix || branch.startsWith(trimmedPrefix)) {
+    return branch;
+  }
+  return `${trimmedPrefix}${branch}`;
+}
+
 export interface GeneratedWorkspaceName {
   title: string | null;
   branch: string | null;
@@ -128,9 +138,12 @@ export async function generateBranchNameFromFirstAgentContext(
         internal: true,
       },
     });
+    const branch = result.branch.trim();
     return {
       title: result.title.trim() || null,
-      branch: result.branch.trim() || null,
+      branch: branch
+        ? applyBranchPrefix(branch, options.daemonConfig?.metadataGeneration?.branchPrefix)
+        : null,
     };
   } catch (error) {
     const attempts = error instanceof StructuredAgentFallbackError ? error.attempts : undefined;

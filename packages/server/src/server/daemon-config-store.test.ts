@@ -190,6 +190,40 @@ describe("DaemonConfigStore", () => {
     expect(loadPersistedConfig(paseoHome).daemon?.agentProfiles).toHaveLength(1);
   });
 
+  test("patch keeps the branch prefix and metadata providers independent", () => {
+    const paseoHome = mkdtempSync(path.join(tmpdir(), "paseo-daemon-config-store-"));
+    tempDirs.push(paseoHome);
+    const store = new DaemonConfigStore(paseoHome, {
+      relay: { enabled: false },
+      mcp: { injectIntoAgents: false },
+      browserTools: { enabled: false },
+      providers: {},
+      metadataGeneration: { providers: [] },
+      autoArchiveAfterMerge: false,
+      enableTerminalAgentHooks: false,
+      appendSystemPrompt: "",
+    });
+
+    store.patch({ metadataGeneration: { branchPrefix: " dp/ " } });
+    store.patch({ metadataGeneration: { providers: [{ provider: "claude" }] } });
+
+    expect(store.get().metadataGeneration).toEqual({
+      providers: [{ provider: "claude" }],
+      branchPrefix: "dp/",
+    });
+    expect(loadPersistedConfig(paseoHome).agents?.metadataGeneration).toEqual({
+      providers: [{ provider: "claude" }],
+      branchPrefix: "dp/",
+    });
+
+    store.patch({ metadataGeneration: { branchPrefix: "" } });
+
+    expect(store.get().metadataGeneration).toEqual({ providers: [{ provider: "claude" }] });
+    expect(loadPersistedConfig(paseoHome).agents?.metadataGeneration).toEqual({
+      providers: [{ provider: "claude" }],
+    });
+  });
+
   test("rolls back config when a field transition fails", () => {
     const paseoHome = mkdtempSync(path.join(tmpdir(), "paseo-daemon-config-store-"));
     tempDirs.push(paseoHome);

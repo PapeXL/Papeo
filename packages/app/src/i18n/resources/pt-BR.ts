@@ -2048,6 +2048,8 @@ export const ptBR: TranslationResources = {
       fallbackHint: "Se ele não estiver disponível, o Paseo usa outro modelo disponível",
       docs: "Documentação",
       saveError: "Não foi possível atualizar a geração de metadados",
+      branchPrefix: "Prefixo da branch",
+      branchPrefixHint: "Adicionado ao início de cada nome de branch gerado, por exemplo dp/",
     },
     general: {
       title: "Geral",

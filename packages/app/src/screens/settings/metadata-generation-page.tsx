@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { StyleSheet } from "react-native-unistyles";
@@ -7,7 +7,9 @@ import { CombinedModelSelector } from "@/components/combined-model-selector";
 import { ExternalLink } from "@/components/ui/external-link";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { EditingTextInput as TextInput } from "@/components/ui/text-input";
 import { useDaemonConfig } from "@/hooks/use-daemon-config";
+import { useHostFeature } from "@/runtime/host-features";
 import { useProvidersSnapshot } from "@/hooks/use-providers-snapshot";
 import { buildSelectableProviderSelectorProviders } from "@/provider-selection/provider-selection";
 import { SettingsSection } from "@/components/settings/headings/settings-section";
@@ -158,8 +160,60 @@ export function MetadataGenerationPage({ serverId }: { serverId: string }) {
             />
           </View>
         ) : null}
+        <BranchPrefixRow serverId={serverId} />
       </View>
     </SettingsSection>
+  );
+}
+
+function BranchPrefixRow({ serverId }: { serverId: string }) {
+  const { t } = useTranslation();
+  const isSupported = useHostFeature(serverId, "metadataBranchPrefix");
+  const { config, patchConfig } = useDaemonConfig(serverId);
+  const savedPrefix = config?.metadataGeneration.branchPrefix ?? "";
+  const draftRef = useRef(savedPrefix);
+
+  const handleChangeText = useCallback((text: string) => {
+    draftRef.current = text;
+  }, []);
+
+  const handleCommit = useCallback(() => {
+    const next = draftRef.current.trim();
+    if (next === savedPrefix) {
+      return;
+    }
+    void patchConfig({ metadataGeneration: { branchPrefix: next } }).catch((error) => {
+      Alert.alert(
+        t("settings.metadataGeneration.saveError"),
+        error instanceof Error ? error.message : String(error),
+      );
+    });
+  }, [patchConfig, savedPrefix, t]);
+
+  if (!isSupported) {
+    return null;
+  }
+
+  return (
+    <View style={[settingsStyles.row, settingsStyles.rowBorder]}>
+      <View style={settingsStyles.rowContent}>
+        <Text style={settingsStyles.rowTitle}>{t("settings.metadataGeneration.branchPrefix")}</Text>
+        <Text style={settingsStyles.rowHint}>
+          {t("settings.metadataGeneration.branchPrefixHint")}
+        </Text>
+      </View>
+      <TextInput
+        initialValue={savedPrefix}
+        onChangeText={handleChangeText}
+        onBlur={handleCommit}
+        onSubmitEditing={handleCommit}
+        placeholder="dp/"
+        autoCapitalize="none"
+        autoCorrect={false}
+        accessibilityLabel={t("settings.metadataGeneration.branchPrefix")}
+        testID="metadata-generation-branch-prefix"
+      />
+    </View>
   );
 }
 

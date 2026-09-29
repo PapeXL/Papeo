@@ -22,7 +22,7 @@ interface SupportedMutableConfigPatch {
   browserTools?: { enabled?: boolean };
   providers?: MutableDaemonConfig["providers"];
   removeProviders?: string[];
-  metadataGeneration?: MutableDaemonConfig["metadataGeneration"];
+  metadataGeneration?: Partial<MutableDaemonConfig["metadataGeneration"]>;
   autoArchiveAfterMerge?: boolean;
   autoArchiveAfterInactivityDays?: number | null;
   enableTerminalAgentHooks?: boolean;
@@ -263,9 +263,7 @@ function pickSupportedPatchFields(patch: MutableDaemonConfigPatch): SupportedMut
       : {}),
     ...(patch.providers !== undefined ? { providers: patch.providers } : {}),
     ...(patch.removeProviders !== undefined ? { removeProviders: patch.removeProviders } : {}),
-    ...(patch.metadataGeneration?.providers !== undefined
-      ? { metadataGeneration: { providers: patch.metadataGeneration.providers } }
-      : {}),
+    ...pickMetadataGenerationPatch(patch.metadataGeneration),
     ...(patch.autoArchiveAfterMerge !== undefined
       ? { autoArchiveAfterMerge: patch.autoArchiveAfterMerge }
       : {}),
@@ -283,6 +281,27 @@ function pickSupportedPatchFields(patch: MutableDaemonConfigPatch): SupportedMut
     ...(patch.pluginsEnabled !== undefined ? { pluginsEnabled: patch.pluginsEnabled } : {}),
     ...(patch.plugins !== undefined ? { plugins: patch.plugins } : {}),
   };
+}
+
+function pickMetadataGenerationPatch(
+  patch: MutableDaemonConfigPatch["metadataGeneration"],
+): Pick<SupportedMutableConfigPatch, "metadataGeneration"> {
+  const metadataGeneration: NonNullable<SupportedMutableConfigPatch["metadataGeneration"]> = {
+    ...(patch?.providers !== undefined ? { providers: patch.providers } : {}),
+    ...(patch?.branchPrefix !== undefined ? { branchPrefix: patch.branchPrefix.trim() } : {}),
+  };
+  return Object.keys(metadataGeneration).length > 0 ? { metadataGeneration } : {};
+}
+
+// An empty branch prefix means "no prefix", so it is removed instead of stored.
+function omitEmptyBranchPrefix<T extends { metadataGeneration?: { branchPrefix?: string } }>(
+  config: T,
+): T {
+  if (config.metadataGeneration?.branchPrefix !== "") {
+    return config;
+  }
+  const { branchPrefix: _removed, ...metadataGeneration } = config.metadataGeneration;
+  return { ...config, metadataGeneration };
 }
 
 export function applyMutableProviderConfigToOverrides(
@@ -375,9 +394,11 @@ export class DaemonConfigStore {
     }
     if (parsedPatch.plugins !== undefined) merged.plugins = parsedPatch.plugins;
     const next = MutableDaemonConfigSchema.parse(
-      omitMetadataGenerationProvidersFromConfig(
-        omitProvidersFromConfig(merged, removedProviders),
-        removedProviders,
+      omitEmptyBranchPrefix(
+        omitMetadataGenerationProvidersFromConfig(
+          omitProvidersFromConfig(merged, removedProviders),
+          removedProviders,
+        ),
       ),
     );
 
@@ -625,22 +646,39 @@ function mergeMutableAgentPatch(
   if (providerOverrides) next["providers"] = providerOverrides;
   else delete next["providers"];
 
-  if (patch.metadataGeneration?.providers !== undefined) {
-    next["metadataGeneration"] = { providers: patch.metadataGeneration.providers };
-  } else if (removeProviders.length > 0 && persistedAgents?.metadataGeneration?.providers) {
-    const removed = new Set(removeProviders);
-    next["metadataGeneration"] = {
-      providers: persistedAgents.metadataGeneration.providers.filter(
-        (entry) => !removed.has(entry.provider),
-      ),
-    };
-  }
+  const metadataGeneration = mergeMetadataGenerationPatch(
+    persistedAgents?.metadataGeneration,
+    patch.metadataGeneration,
+    removeProviders,
+  );
+  if (Object.keys(metadataGeneration).length > 0) next["metadataGeneration"] = metadataGeneration;
+  else delete next["metadataGeneration"];
 
   if (patch.skills?.selection !== undefined) {
     next["skills"] = { selection: patch.skills.selection };
   }
 
   return Object.keys(next).length > 0 ? (next as PersistedConfig["agents"]) : undefined;
+}
+
+function mergeMetadataGenerationPatch(
+  persisted: NonNullable<PersistedConfig["agents"]>["metadataGeneration"],
+  patch: SupportedMutableConfigPatch["metadataGeneration"],
+  removeProviders: readonly string[],
+): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...persisted };
+  if (patch?.providers !== undefined) {
+    next["providers"] = patch.providers;
+  } else if (removeProviders.length > 0 && persisted?.providers) {
+    const removed = new Set(removeProviders);
+    next["providers"] = persisted.providers.filter((entry) => !removed.has(entry.provider));
+  }
+  if (patch?.branchPrefix) {
+    next["branchPrefix"] = patch.branchPrefix;
+  } else if (patch?.branchPrefix === "") {
+    delete next["branchPrefix"];
+  }
+  return next;
 }
 
 function mergeMutableDaemonPatch(

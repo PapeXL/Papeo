@@ -2048,6 +2048,8 @@ export const ru: TranslationResources = {
       fallbackHint: "Если она недоступна, Paseo использует другую доступную модель",
       docs: "Документация",
       saveError: "Не удалось обновить настройки генерации метаданных",
+      branchPrefix: "Префикс ветки",
+      branchPrefixHint: "Добавляется в начало каждого сгенерированного имени ветки, например dp/",
     },
     general: {
       title: "Основные",

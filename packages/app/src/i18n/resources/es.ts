@@ -2063,6 +2063,8 @@ export const es: TranslationResources = {
       fallbackHint: "Si no está disponible, Paseo usa otro modelo disponible",
       docs: "Documentación",
       saveError: "No se pudo actualizar la generación de metadatos",
+      branchPrefix: "Prefijo de rama",
+      branchPrefixHint: "Se añade al inicio de cada nombre de rama generado, por ejemplo dp/",
     },
     general: {
       title: "General",

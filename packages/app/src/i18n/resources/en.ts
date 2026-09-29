@@ -2139,6 +2139,8 @@ export const en = {
       fallbackHint: "If it is unavailable, Paseo falls back to another available model",
       docs: "Docs",
       saveError: "Unable to update metadata generation",
+      branchPrefix: "Branch prefix",
+      branchPrefixHint: "Added to the start of every generated branch name, for example dp/",
     },
     general: {
       title: "General",

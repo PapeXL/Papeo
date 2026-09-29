@@ -88,6 +88,26 @@ describe("generateBranchNameFromFirstAgentContext", () => {
     expect(structured.calls).toHaveLength(1);
   });
 
+  test("adds the daemon branch prefix once", async () => {
+    const generate = (branch: string) =>
+      generateBranchNameFromFirstAgentContext({
+        agentManager: {} as AgentManager,
+        cwd: "/tmp/repo",
+        daemonConfig: { metadataGeneration: { branchPrefix: "dp/" } },
+        firstAgentContext: { prompt: "Fix the login flow" },
+        logger: createLogger(),
+        deps: {
+          generateStructuredAgentResponseWithFallback: createStructuredGenerator({
+            title: "Fix login flow",
+            branch,
+          }).generateStructured,
+        },
+      });
+
+    expect((await generate("fix-login-flow"))?.branch).toBe("dp/fix-login-flow");
+    expect((await generate("dp/fix-login-flow"))?.branch).toBe("dp/fix-login-flow");
+  });
+
   test("calls the structured generator with first-agent prompt text", async () => {
     const structured = createStructuredGenerator({
       title: "Fix login flow",

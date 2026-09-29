@@ -2025,6 +2025,8 @@ export const ko: TranslationResources = {
       fallbackHint: "사용할 수 없으면 Paseo가 다른 사용 가능한 모델을 사용합니다",
       docs: "문서",
       saveError: "메타데이터 생성을 업데이트할 수 없습니다",
+      branchPrefix: "브랜치 접두사",
+      branchPrefixHint: "생성되는 모든 브랜치 이름 앞에 추가됩니다 (예: dp/)",
     },
     general: {
       title: "일반",

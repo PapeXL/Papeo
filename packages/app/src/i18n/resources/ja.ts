@@ -2035,6 +2035,8 @@ export const ja: TranslationResources = {
       fallbackHint: "利用できない場合、Paseo は別の利用可能なモデルを使用します",
       docs: "ドキュメント",
       saveError: "メタデータ生成を更新できません",
+      branchPrefix: "ブランチのプレフィックス",
+      branchPrefixHint: "生成されるすべてのブランチ名の先頭に追加されます（例: dp/）",
     },
     general: {
       title: "一般",

@@ -2015,6 +2015,8 @@ export const ar: TranslationResources = {
       fallbackHint: "إذا لم يكن متاحًا، يستخدم Paseo نموذجًا آخر متاحًا",
       docs: "الوثائق",
       saveError: "تعذر تحديث إنشاء البيانات الوصفية",
+      branchPrefix: "بادئة الفرع",
+      branchPrefixHint: "تُضاف إلى بداية كل اسم فرع يتم إنشاؤه، مثل dp/",
     },
     general: {
       title: "عام",

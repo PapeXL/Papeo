@@ -155,6 +155,7 @@ const MutableStructuredGenerationProviderSchema = z
 const MutableMetadataGenerationConfigSchema = z
   .object({
     providers: z.array(MutableStructuredGenerationProviderSchema).default([]),
+    branchPrefix: z.string().optional(),
   })
   .passthrough();
 
@@ -219,7 +220,14 @@ export const MutableDaemonConfigPatchSchema = z
       .record(z.string(), MutableDaemonProviderConfigSchema.partial().passthrough())
       .optional(),
     removeProviders: z.array(z.string().min(1)).optional(),
-    metadataGeneration: MutableMetadataGenerationConfigSchema.partial().optional(),
+    // No providers default here: a patch that only sets branchPrefix must not clear providers.
+    metadataGeneration: z
+      .object({
+        providers: z.array(MutableStructuredGenerationProviderSchema).optional(),
+        branchPrefix: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
     autoArchiveAfterMerge: z.boolean().optional(),
     autoArchiveAfterInactivityDays: z.number().int().min(1).max(365).nullable().optional(),
     enableTerminalAgentHooks: z.boolean().optional(),
@@ -3806,6 +3814,9 @@ export const ServerInfoStatusPayloadSchema = z
         agentProfiles: z.boolean().optional(),
         // COMPAT(agentConfigApply): added in v0.3.2, remove gate after 2027-02-11.
         agentConfigApply: z.boolean().optional(),
+        // COMPAT(metadataBranchPrefix): added in v0.10.1, remove gate after 2027-03-29.
+        // An older daemon drops metadataGeneration.branchPrefix on save.
+        metadataBranchPrefix: z.boolean().optional(),
       })
       .optional(),
   })

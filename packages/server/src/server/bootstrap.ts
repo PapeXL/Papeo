@@ -452,6 +452,7 @@ export interface PaseoDaemonConfig {
       model?: string;
       thinkingOptionId?: string;
     }>;
+    branchPrefix?: string;
   };
   providerOverrides?: Record<string, ProviderOverride>;
   log?: PersistedConfig["log"];
@@ -564,6 +565,9 @@ function createInitialMutableDaemonConfig(config: PaseoDaemonConfig): MutableDae
     providers,
     metadataGeneration: {
       providers: config.metadataGeneration?.providers ?? [],
+      ...(config.metadataGeneration?.branchPrefix !== undefined
+        ? { branchPrefix: config.metadataGeneration.branchPrefix }
+        : {}),
     },
     autoArchiveAfterMerge: config.autoArchiveAfterMerge ?? false,
     enableTerminalAgentHooks: config.enableTerminalAgentHooks ?? false,

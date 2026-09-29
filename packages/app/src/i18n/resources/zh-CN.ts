@@ -1993,6 +1993,8 @@ export const zhCN: TranslationResources = {
       fallbackHint: "如果不可用，Paseo 会改用其他可用模型",
       docs: "文档",
       saveError: "无法更新元数据生成设置",
+      branchPrefix: "分支前缀",
+      branchPrefixHint: "添加到每个生成的分支名称开头，例如 dp/",
     },
     general: {
       title: "通用",
