@@ -29,6 +29,9 @@ files:
 asarUnpack:
   - dist/daemon/node-entrypoint-runner.js
   - node_modules/@getpaseo/server/dist/server/terminal/shell-integration/**/*
+  # Built-in plugins are compiled by esbuild at daemon start, and esbuild reads the real disk,
+  # not the archive. The daemon looks for them here (plugins/builtin/index.ts).
+  - node_modules/@getpaseo/server/dist/server/builtin-plugins/**/*
 extraResources:
   - from: ../app/dist
     to: app-dist

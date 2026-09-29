@@ -8,7 +8,12 @@ import { compilePlugin } from "../compiler.js";
 import { readPluginManifest } from "../manifest.js";
 import { DaemonClient } from "../../test-utils/daemon-client.js";
 import { createTestPaseoDaemon } from "../../test-utils/paseo-daemon.js";
-import { BuiltinPluginLoader, builtinPlugins, resolveBuiltinPluginsRoot } from "./index.js";
+import {
+  asarUnpackedPath,
+  BuiltinPluginLoader,
+  builtinPlugins,
+  resolveBuiltinPluginsRoot,
+} from "./index.js";
 
 const roots: string[] = [];
 afterEach(async () => {
@@ -132,3 +137,48 @@ test("directory, Git, and npm installs reject a built-in ID", async () => {
     await daemon.close();
   }
 }, 60_000);
+
+test("maps a path inside app.asar to its app.asar.unpacked twin", () => {
+  expect(
+    asarUnpackedPath(String.raw`C:\Papeo\resources\app.asar\node_modules\x\builtin-plugins`, "\\"),
+  ).toBe(String.raw`C:\Papeo\resources\app.asar.unpacked\node_modules\x\builtin-plugins`);
+  expect(asarUnpackedPath("/opt/Papeo/resources/app.asar/dist/builtin-plugins", "/")).toBe(
+    "/opt/Papeo/resources/app.asar.unpacked/dist/builtin-plugins",
+  );
+  expect(asarUnpackedPath("/repo/packages/server/dist/builtin-plugins", "/")).toBeNull();
+});
+
+test("loads built-in plugins from app.asar.unpacked in the packaged app", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "builtin-asar-"));
+  try {
+    const moduleDir = path.join(
+      root,
+      "app.asar",
+      "server",
+      "dist",
+      "server",
+      "server",
+      "plugins",
+      "builtin",
+    );
+    await mkdir(moduleDir, { recursive: true });
+    await mkdir(path.join(root, "app.asar", "server", "dist", "server", "builtin-plugins"), {
+      recursive: true,
+    });
+    const unpacked = path.join(
+      root,
+      "app.asar.unpacked",
+      "server",
+      "dist",
+      "server",
+      "builtin-plugins",
+    );
+    await mkdir(unpacked, { recursive: true });
+
+    const resolved = resolveBuiltinPluginsRoot(pathToFileURL(path.join(moduleDir, "index.js")));
+
+    expect(resolved).toBe(unpacked);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

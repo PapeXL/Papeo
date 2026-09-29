@@ -14,13 +14,27 @@ export const builtinPlugins = [
   "zai-usage-source",
 ] as const;
 
+/**
+ * The `app.asar.unpacked` twin of a path inside the packaged desktop app's `app.asar`, or null
+ * for a path outside it. Built-in plugins are compiled by esbuild, which reads the real disk
+ * and cannot see into the archive; electron-builder unpacks them next to it.
+ */
+export function asarUnpackedPath(candidate: string, sep: string = path.sep): string | null {
+  const asarSegment = `${sep}app.asar${sep}`;
+  const index = candidate.indexOf(asarSegment);
+  if (index === -1) return null;
+  return `${candidate.slice(0, index)}${sep}app.asar.unpacked${sep}${candidate.slice(index + asarSegment.length)}`;
+}
+
 export function resolveBuiltinPluginsRoot(moduleUrl: string | URL = import.meta.url): string {
   const moduleDir = path.dirname(fileURLToPath(moduleUrl));
   const candidates = [
     path.resolve(moduleDir, "..", "..", "..", "builtin-plugins"),
     path.resolve(moduleDir, "..", "..", "..", "..", "..", "..", "plugins"),
   ];
-  return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!;
+  const root = candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!;
+  const unpacked = asarUnpackedPath(root);
+  return unpacked && existsSync(unpacked) ? unpacked : root;
 }
 
 export interface BuiltinPlugin {
