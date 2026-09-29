@@ -153,6 +153,7 @@ import { HostBadge } from "@/hosts/host-badge";
 import {
   ProjectMetaLines,
   selectProjectCheckoutBranch,
+  type ProjectCheckoutBranch,
 } from "@/components/sidebar/workspace-meta-row";
 import {
   selectProjectDatabaseLine,
@@ -278,7 +279,7 @@ interface ProjectHeaderRowProps {
   /** The project's database, when it declares one and the row item is on. */
   databaseName?: string | null;
   /** The branch checked out in the project directory, when the branch row item is on. */
-  branchName?: string | null;
+  branch?: ProjectCheckoutBranch | null;
 }
 
 interface WorkspaceRowInnerProps {
@@ -875,12 +876,12 @@ function ProjectHeaderTitle({
   displayName,
   hostBadge,
   databaseName,
-  branchName,
+  branch,
 }: {
   displayName: string;
   hostBadge: HostBadgeModel | null;
   databaseName: string | null;
-  branchName?: string | null;
+  branch?: ProjectCheckoutBranch | null;
 }) {
   return (
     <View style={styles.projectTitleColumn}>
@@ -890,7 +891,7 @@ function ProjectHeaderTitle({
         </Text>
         {hostBadge ? <HostBadge badge={hostBadge} /> : null}
       </View>
-      <ProjectMetaLines branchName={branchName} databaseName={databaseName} />
+      <ProjectMetaLines branch={branch} databaseName={databaseName} />
     </View>
   );
 }
@@ -918,7 +919,7 @@ function ProjectHeaderRow({
   dragHandleProps,
   hostBadge = null,
   databaseName = null,
-  branchName,
+  branch,
 }: ProjectHeaderRowProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
@@ -1009,7 +1010,7 @@ function ProjectHeaderRow({
           displayName={displayName}
           hostBadge={hostBadge}
           databaseName={databaseName}
-          branchName={branchName}
+          branch={branch}
         />
       </View>
       <ProjectRowTrailingActions
@@ -1696,7 +1697,7 @@ function ProjectBlock({
       }),
     [project.workspaces, rowItems, workspaceEntriesByKey],
   );
-  // The live branch of the project directory. Workspace rows name the branch attached to them.
+  // The live branch of the project directory, and where you switch it.
   const projectBranchLine = useMemo(
     () =>
       rowItems.branch
@@ -1906,7 +1907,7 @@ function ProjectBlock({
         dragHandleProps={dragHandleProps}
         hostBadge={singleHostBadge}
         databaseName={projectDatabaseLine}
-        branchName={projectBranchLine}
+        branch={projectBranchLine}
       />
 
       {projectChildren}

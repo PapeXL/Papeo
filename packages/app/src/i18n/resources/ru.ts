@@ -1552,6 +1552,13 @@ export const ru: TranslationResources = {
     checkoutAttachedTooltip:
       "Это рабочее пространство привязано к {{branchName}}. Нажмите, чтобы переключиться.",
     failedToAttach: "Не удалось обновить привязанную ветку",
+    attachLabel: "Привязать ветку",
+    projectBranch:
+      "Ветка проекта: {{branchName}}. Нажмите, чтобы переключить ветку для всех рабочих пространств этого проекта.",
+    runningAgentsTitle: "Агенты выполняются",
+    runningAgentsMessage:
+      "Переключение на {{branchName}} меняет файлы во всех рабочих пространствах этой папки. В этих рабочих пространствах выполняются агенты: {{workspaces}}.",
+    switchAnyway: "Всё равно переключить",
   },
   agentAutocomplete: {
     searchingWorkspace: "Поиск в рабочем пространстве...",

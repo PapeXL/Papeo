@@ -1573,6 +1573,13 @@ export const fr: TranslationResources = {
     checkoutAttachedTooltip:
       "Cet espace de travail est associé à {{branchName}}. Appuyez pour basculer sur cette branche.",
     failedToAttach: "Échec de la mise à jour de la branche associée",
+    attachLabel: "Associer la branche",
+    projectBranch:
+      "Branche du projet : {{branchName}}. Appuyez pour changer la branche de tous les espaces de travail de ce projet.",
+    runningAgentsTitle: "Des agents sont en cours d’exécution",
+    runningAgentsMessage:
+      "Basculer sur {{branchName}} modifie les fichiers de tous les espaces de travail de ce dossier. Ces espaces de travail ont des agents en cours d’exécution : {{workspaces}}.",
+    switchAnyway: "Basculer quand même",
   },
   agentAutocomplete: {
     searchingWorkspace: "Recherche dans l'espace de travail...",

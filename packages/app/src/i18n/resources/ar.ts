@@ -1522,6 +1522,13 @@ export const ar: TranslationResources = {
     checkoutAttached: "التبديل إلى {{branchName}}",
     checkoutAttachedTooltip: "مساحة العمل هذه مرتبطة بـ {{branchName}}. اضغط للتبديل إليه.",
     failedToAttach: "فشل تحديث الفرع المرتبط",
+    attachLabel: "ربط الفرع",
+    projectBranch:
+      "فرع المشروع: {{branchName}}. اضغط لتبديل الفرع لكل مساحات العمل في هذا المشروع.",
+    runningAgentsTitle: "هناك وكلاء قيد التشغيل",
+    runningAgentsMessage:
+      "التبديل إلى {{branchName}} يغيّر الملفات لكل مساحات العمل في هذا المجلد. مساحات العمل هذه فيها وكلاء قيد التشغيل: {{workspaces}}.",
+    switchAnyway: "بدّل على أي حال",
   },
   agentAutocomplete: {
     searchingWorkspace: "جارٍ البحث في مساحة العمل...",

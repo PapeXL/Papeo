@@ -7,6 +7,8 @@ import type { ToastApi } from "@/components/toast-host";
 import { invalidateCheckoutGitQueriesForClient } from "@/git/query-keys";
 import { createBranchSwitcherOperations } from "@/git/branch-switcher-operations";
 import { confirmDialog } from "@/utils/confirm-dialog";
+import { useSessionStore } from "@/stores/session-store";
+import { selectRunningWorkspaceNamesInDirectory } from "@/git/running-workspaces";
 
 interface UseBranchSwitcherInput {
   client: DaemonClient | null;
@@ -149,12 +151,36 @@ export function useBranchSwitcher({
     [operations, currentBranchName, invalidateStashAndCheckout, toast, t],
   );
 
+  // Read at press time, not subscribed: the answer only matters at the moment of the switch.
+  const confirmSwitchWithRunningAgents = useCallback(
+    async (branchId: string) => {
+      if (!workspaceDirectory) return true;
+      const runningNames = selectRunningWorkspaceNamesInDirectory({
+        workspaces: useSessionStore.getState().sessions[normalizedServerId]?.workspaces,
+        directory: workspaceDirectory,
+      });
+      if (runningNames.length === 0) return true;
+      return confirmDialog({
+        title: t("branchSwitcher.runningAgentsTitle"),
+        message: t("branchSwitcher.runningAgentsMessage", {
+          branchName: branchId,
+          workspaces: runningNames.join(", "),
+        }),
+        confirmLabel: t("branchSwitcher.switchAnyway"),
+        cancelLabel: t("common.actions.cancel"),
+        destructive: true,
+      });
+    },
+    [normalizedServerId, t, workspaceDirectory],
+  );
+
   const handleBranchSelect = useCallback(
     (branchId: string) => {
       if (branchId === currentBranchName) return;
 
       void (async () => {
         if (!operations) return;
+        if (!(await confirmSwitchWithRunningAgents(branchId))) return;
         try {
           const payload = await operations.switchBranch(branchId);
           if (payload.error) {
@@ -176,6 +202,7 @@ export function useBranchSwitcher({
     },
     [
       operations,
+      confirmSwitchWithRunningAgents,
       currentBranchName,
       invalidateStashAndCheckout,
       maybeRestoreStashForBranch,

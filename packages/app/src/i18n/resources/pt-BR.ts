@@ -1554,6 +1554,13 @@ export const ptBR: TranslationResources = {
     checkoutAttachedTooltip:
       "Este espaço de trabalho está vinculado a {{branchName}}. Toque para fazer checkout.",
     failedToAttach: "Falha ao atualizar o branch vinculado",
+    attachLabel: "Vincular branch",
+    projectBranch:
+      "Branch do projeto: {{branchName}}. Toque para trocar o branch de todos os espaços de trabalho deste projeto.",
+    runningAgentsTitle: "Há agentes em execução",
+    runningAgentsMessage:
+      "Trocar para {{branchName}} altera os arquivos de todos os espaços de trabalho desta pasta. Estes espaços de trabalho têm agentes em execução: {{workspaces}}.",
+    switchAnyway: "Trocar mesmo assim",
   },
   agentAutocomplete: {
     searchingWorkspace: "Buscando workspace...",

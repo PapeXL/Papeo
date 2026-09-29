@@ -1533,6 +1533,13 @@ export const ko: TranslationResources = {
     checkoutAttachedTooltip:
       "이 워크스페이스는 {{branchName}}에 연결되어 있습니다. 눌러서 체크아웃하세요.",
     failedToAttach: "연결된 브랜치를 업데이트하지 못했습니다",
+    attachLabel: "브랜치 연결",
+    projectBranch:
+      "프로젝트 브랜치: {{branchName}}. 눌러서 이 프로젝트의 모든 워크스페이스 브랜치를 전환하세요.",
+    runningAgentsTitle: "에이전트가 실행 중입니다",
+    runningAgentsMessage:
+      "{{branchName}}(으)로 전환하면 이 폴더의 모든 워크스페이스 파일이 바뀝니다. 다음 워크스페이스에서 에이전트가 실행 중입니다: {{workspaces}}.",
+    switchAnyway: "그래도 전환",
   },
   agentAutocomplete: {
     searchingWorkspace: "워크스페이스 검색 중...",

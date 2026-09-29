@@ -1569,6 +1569,13 @@ export const es: TranslationResources = {
     checkoutAttachedTooltip:
       "Este espacio de trabajo está vinculado a {{branchName}}. Pulsa para cambiar a esa rama.",
     failedToAttach: "No se pudo actualizar la rama vinculada",
+    attachLabel: "Vincular rama",
+    projectBranch:
+      "Rama del proyecto: {{branchName}}. Pulsa para cambiar la rama de todos los espacios de trabajo de este proyecto.",
+    runningAgentsTitle: "Hay agentes en ejecución",
+    runningAgentsMessage:
+      "Cambiar a {{branchName}} cambia los archivos de todos los espacios de trabajo de esta carpeta. Estos espacios de trabajo tienen agentes en ejecución: {{workspaces}}.",
+    switchAnyway: "Cambiar de todos modos",
   },
   agentAutocomplete: {
     searchingWorkspace: "Buscando espacio de trabajo...",

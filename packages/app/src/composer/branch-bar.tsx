@@ -2,11 +2,11 @@ import { memo, type ReactElement } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { AttachedBranchControl } from "@/components/attached-branch-control";
-import { BranchSwitcher } from "@/components/branch-switcher";
 import { useWorkspaceFields } from "@/stores/session-store-hooks";
 
-// The workspace's branch, shown under the chat composer. Reads the live branch from the
-// workspace descriptor, so it follows checkouts made anywhere, not only from this bar.
+// The workspace's attached branch, shown under the chat composer. It offers only workspace
+// actions — attach, detach, check out the attached branch. Switching to any other branch
+// changes the project directory for every workspace, so that lives on the project row.
 export const WorkspaceBranchBar = memo(function WorkspaceBranchBar({
   serverId,
   workspaceId,
@@ -26,17 +26,9 @@ export const WorkspaceBranchBar = memo(function WorkspaceBranchBar({
 
   return (
     <View style={styles.row} testID="composer-branch-bar">
-      <BranchSwitcher
-        currentBranchName={fields.currentBranch}
-        serverId={serverId}
-        workspaceId={fields.id}
-        workspaceDirectory={fields.workspaceDirectory}
-        isGitCheckout
-        desktopPlacement="top-start"
-        testID="composer-branch-switcher"
-      />
       <AttachedBranchControl
         compact
+        labeled
         currentBranchName={fields.currentBranch}
         serverId={serverId}
         workspaceId={fields.id}

@@ -26,6 +26,8 @@ interface AttachedBranchControlProps {
   serverId: string;
   workspaceId: string | null;
   workspaceDirectory: string;
+  /** Names the branch next to the icon. For places that do not already show the branch. */
+  labeled?: boolean;
 }
 
 const accentIconColorMapping = (theme: Theme) => ({ color: theme.colors.accent });
@@ -44,6 +46,7 @@ export function AttachedBranchControl({
   serverId,
   workspaceId,
   workspaceDirectory,
+  labeled = false,
 }: AttachedBranchControlProps) {
   const { t } = useTranslation();
   const client = useHostRuntimeClient(serverId);
@@ -110,6 +113,19 @@ export function AttachedBranchControl({
 
   const iconSize = paneContentToolbarIconSize(compact);
 
+  if (!attachedBranch && labeled) {
+    return (
+      <LabelButton
+        testID="changes-attach-branch"
+        label={t("branchSwitcher.attachLabel")}
+        tooltip={t("branchSwitcher.attach", { branchName: currentBranchName })}
+        icon={ThemedLink2}
+        iconColor={extraMutedIconColorMapping}
+        onPress={handleAttach}
+      />
+    );
+  }
+
   if (!attachedBranch) {
     return (
       <ToolbarButton
@@ -141,41 +157,77 @@ export function AttachedBranchControl({
   );
 
   if (attachedBranch === currentBranchName) {
-    return detachButton;
+    return labeled ? (
+      <LabelButton
+        testID="changes-detach-branch"
+        label={attachedBranch}
+        tooltip={t("branchSwitcher.detach", { branchName: attachedBranch })}
+        icon={ThemedLink2}
+        iconColor={accentIconColorMapping}
+        onPress={handleDetach}
+      />
+    ) : (
+      detachButton
+    );
   }
 
   return (
     <>
-      <Tooltip delayDuration={300} enabledOnDesktop enabledOnMobile={false}>
-        <TooltipTrigger
-          testID="changes-checkout-attached-branch"
-          accessibilityRole="button"
-          accessibilityLabel={t("branchSwitcher.checkoutAttached", { branchName: attachedBranch })}
-          onPress={handleCheckout}
-          style={toolbarLabelTriggerStyle}
-        >
-          {(state) => {
-            const highlighted = isToolbarLabelTriggerHighlighted(state);
-            return (
-              <>
-                <ToolbarLabelTriggerIcon>
-                  <ThemedGitBranch size={14} uniProps={warningIconColorMapping} />
-                </ToolbarLabelTriggerIcon>
-                <Text numberOfLines={1} style={toolbarLabelTriggerTextStyle(highlighted)}>
-                  {t("branchSwitcher.checkoutAttached", { branchName: attachedBranch })}
-                </Text>
-              </>
-            );
-          }}
-        </TooltipTrigger>
-        <TooltipContent side="bottom">
-          <Text style={styles.tooltipText}>
-            {t("branchSwitcher.checkoutAttachedTooltip", { branchName: attachedBranch })}
-          </Text>
-        </TooltipContent>
-      </Tooltip>
+      <LabelButton
+        testID="changes-checkout-attached-branch"
+        label={t("branchSwitcher.checkoutAttached", { branchName: attachedBranch })}
+        tooltip={t("branchSwitcher.checkoutAttachedTooltip", { branchName: attachedBranch })}
+        icon={ThemedGitBranch}
+        iconColor={warningIconColorMapping}
+        onPress={handleCheckout}
+      />
       {detachButton}
     </>
+  );
+}
+
+function LabelButton({
+  label,
+  tooltip,
+  icon: Icon,
+  iconColor,
+  onPress,
+  testID,
+}: {
+  label: string;
+  tooltip: string;
+  icon: typeof ThemedLink2 | typeof ThemedGitBranch;
+  iconColor: (theme: Theme) => { color: string };
+  onPress: () => void;
+  testID: string;
+}) {
+  return (
+    <Tooltip delayDuration={300} enabledOnDesktop enabledOnMobile={false}>
+      <TooltipTrigger
+        testID={testID}
+        accessibilityRole="button"
+        accessibilityLabel={tooltip}
+        onPress={onPress}
+        style={toolbarLabelTriggerStyle}
+      >
+        {(state) => (
+          <>
+            <ToolbarLabelTriggerIcon>
+              <Icon size={14} uniProps={iconColor} />
+            </ToolbarLabelTriggerIcon>
+            <Text
+              numberOfLines={1}
+              style={toolbarLabelTriggerTextStyle(isToolbarLabelTriggerHighlighted(state))}
+            >
+              {label}
+            </Text>
+          </>
+        )}
+      </TooltipTrigger>
+      <TooltipContent side="bottom">
+        <Text style={styles.tooltipText}>{tooltip}</Text>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

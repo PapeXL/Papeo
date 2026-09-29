@@ -1547,6 +1547,13 @@ export const en = {
     checkoutAttached: "Checkout {{branchName}}",
     checkoutAttachedTooltip: "This workspace is attached to {{branchName}}. Press to check it out.",
     failedToAttach: "Failed to update the attached branch",
+    attachLabel: "Attach branch",
+    projectBranch:
+      "Project branch: {{branchName}}. Press to switch the branch for all workspaces in this project.",
+    runningAgentsTitle: "Agents are running",
+    runningAgentsMessage:
+      "Switching to {{branchName}} changes the files for every workspace in this folder. These workspaces have running agents: {{workspaces}}.",
+    switchAnyway: "Switch anyway",
   },
   agentAutocomplete: {
     searchingWorkspace: "Searching workspace...",

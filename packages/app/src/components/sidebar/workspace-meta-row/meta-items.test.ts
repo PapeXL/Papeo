@@ -185,20 +185,31 @@ describe("selectWorkspaceRowBranch", () => {
 });
 
 describe("selectProjectCheckoutBranch", () => {
+  const entry = (workspaceKind: "worktree" | "local_checkout", currentBranch: string | null) => ({
+    workspaceKind,
+    currentBranch,
+    serverId: "srv",
+    workspaceId: `wks-${workspaceKind}-${currentBranch ?? "none"}`,
+    workspaceDirectory: "/repo",
+  });
+
   it("answers with the first shared-checkout workspace and ignores worktrees", () => {
     expect(
       selectProjectCheckoutBranch([
         null,
-        { workspaceKind: "worktree", currentBranch: "feature/wt" },
-        { workspaceKind: "local_checkout", currentBranch: null },
-        { workspaceKind: "local_checkout", currentBranch: "dev" },
+        entry("worktree", "feature/wt"),
+        entry("local_checkout", null),
+        entry("local_checkout", "dev"),
       ]),
-    ).toBe("dev");
+    ).toEqual({
+      branchName: "dev",
+      serverId: "srv",
+      workspaceId: "wks-local_checkout-dev",
+      workspaceDirectory: "/repo",
+    });
   });
 
   it("is null when only worktrees report a branch", () => {
-    expect(
-      selectProjectCheckoutBranch([{ workspaceKind: "worktree", currentBranch: "feature/wt" }]),
-    ).toBeNull();
+    expect(selectProjectCheckoutBranch([entry("worktree", "feature/wt")])).toBeNull();
   });
 });

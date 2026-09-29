@@ -1505,6 +1505,12 @@ export const zhCN: TranslationResources = {
     checkoutAttached: "检出 {{branchName}}",
     checkoutAttachedTooltip: "此工作区关联到 {{branchName}}。按下以检出该分支。",
     failedToAttach: "无法更新关联的分支",
+    attachLabel: "关联分支",
+    projectBranch: "项目分支：{{branchName}}。按下以切换此项目中所有工作区的分支。",
+    runningAgentsTitle: "有代理正在运行",
+    runningAgentsMessage:
+      "切换到 {{branchName}} 会更改此文件夹中所有工作区的文件。这些工作区有正在运行的代理：{{workspaces}}。",
+    switchAnyway: "仍然切换",
   },
   agentAutocomplete: {
     searchingWorkspace: "正在搜索 workspace...",

@@ -1540,6 +1540,13 @@ export const ja: TranslationResources = {
     checkoutAttachedTooltip:
       "このワークスペースは {{branchName}} に関連付けられています。押すとチェックアウトします。",
     failedToAttach: "関連付けたブランチを更新できませんでした",
+    attachLabel: "ブランチを関連付け",
+    projectBranch:
+      "プロジェクトのブランチ: {{branchName}}。押すと、このプロジェクトのすべてのワークスペースのブランチを切り替えます。",
+    runningAgentsTitle: "エージェントが実行中です",
+    runningAgentsMessage:
+      "{{branchName}} に切り替えると、このフォルダーのすべてのワークスペースのファイルが変わります。次のワークスペースでエージェントが実行中です: {{workspaces}}。",
+    switchAnyway: "それでも切り替える",
   },
   agentAutocomplete: {
     searchingWorkspace: "ワークスペースを検索中...",

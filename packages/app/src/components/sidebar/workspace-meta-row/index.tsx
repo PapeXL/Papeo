@@ -20,6 +20,8 @@ import { CheckIndicator } from "./check-indicator";
 import type { CheckSummary, CheckSummaryState } from "./check-summary";
 import { selectMetaRowItems, type MetaRowItem, type WorkspaceRowBranch } from "./meta-items";
 import { workspaceServiceLabelKey, type WorkspaceServiceSummary } from "./service-summary";
+import type { ProjectCheckoutBranch } from "./project-branch";
+import { ProjectBranchSwitcher } from "./project-branch-switcher";
 
 export {
   selectWorkspaceServiceSummary,
@@ -27,7 +29,7 @@ export {
   type WorkspaceServiceSummary,
 } from "./service-summary";
 export { selectWorkspaceRowBranch, type WorkspaceRowBranch } from "./meta-items";
-export { selectProjectCheckoutBranch } from "./project-branch";
+export { selectProjectCheckoutBranch, type ProjectCheckoutBranch } from "./project-branch";
 
 /**
  * One size for every glyph on the line. The items are peers — host, change request, CI,
@@ -143,54 +145,30 @@ const IDENTITY_ICONS = {
 
 /**
  * The lines under a project header: the database, then the branch checked out in the project
- * directory. They borrow the meta line's ink and glyph size, so the project's lines and a
- * workspace's second line read as the same kind of text.
+ * directory, which is also where you switch it. They borrow the meta line's ink and glyph size,
+ * so the project's lines and a workspace's second line read as the same kind of text.
  */
 export function ProjectMetaLines({
-  branchName,
+  branch,
   databaseName,
 }: {
-  branchName?: string | null;
+  branch?: ProjectCheckoutBranch | null;
   databaseName: string | null;
 }) {
   return (
     <>
       {databaseName ? (
-        <ProjectIdentityLine
-          icon={ThemedDatabase}
-          name={databaseName}
-          testID="sidebar-project-database"
-        />
+        <View style={styles.identityItem} testID="sidebar-project-database">
+          <View style={styles.identityIcon}>
+            <ThemedDatabase size={META_ICON_SIZE} uniProps={mutedMapping} />
+          </View>
+          <Text style={styles.identityText} numberOfLines={1}>
+            {databaseName}
+          </Text>
+        </View>
       ) : null}
-      {branchName ? (
-        <ProjectIdentityLine
-          icon={ThemedGitBranch}
-          name={branchName}
-          testID="sidebar-project-branch"
-        />
-      ) : null}
+      {branch ? <ProjectBranchSwitcher branch={branch} /> : null}
     </>
-  );
-}
-
-function ProjectIdentityLine({
-  icon: Icon,
-  name,
-  testID,
-}: {
-  icon: typeof ThemedDatabase | typeof ThemedGitBranch;
-  name: string;
-  testID: string;
-}) {
-  return (
-    <View style={styles.identityItem} testID={testID}>
-      <View style={styles.identityIcon}>
-        <Icon size={META_ICON_SIZE} uniProps={mutedMapping} />
-      </View>
-      <Text style={styles.identityText} numberOfLines={1}>
-        {name}
-      </Text>
-    </View>
   );
 }
 
