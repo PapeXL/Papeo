@@ -3163,6 +3163,26 @@ export class DaemonClient {
     return { pinnedAt: payload.pinnedAt };
   }
 
+  async setWorkspaceAttachedBranch(
+    workspaceId: string,
+    branch: string | null,
+    requestId?: string,
+  ): Promise<{ attachedBranch: string | null }> {
+    const payload = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: {
+        type: "workspace.attached_branch.set.request",
+        workspaceId,
+        branch,
+      },
+      responseType: "workspace.attached_branch.set.response",
+    });
+    if (!payload.accepted) {
+      throw new Error(payload.error ?? "setWorkspaceAttachedBranch rejected");
+    }
+    return { attachedBranch: payload.attachedBranch };
+  }
+
   async inspectWorkspaceRecovery(
     workspaceId: string,
     requestId?: string,

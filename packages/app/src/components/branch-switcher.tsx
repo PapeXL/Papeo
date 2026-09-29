@@ -5,7 +5,12 @@ import { GitBranch } from "lucide-react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
 import type { Theme } from "@/styles/theme";
-import { Combobox, ComboboxItem, type ComboboxProps } from "@/components/ui/combobox";
+import {
+  Combobox,
+  ComboboxItem,
+  type ComboboxDesktopPlacement,
+  type ComboboxProps,
+} from "@/components/ui/combobox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useHostRuntimeClient, useHostRuntimeIsConnected } from "@/runtime/host-runtime";
 import { useToast } from "@/contexts/toast-context";
@@ -18,6 +23,8 @@ interface BranchSwitcherProps {
   workspaceId: string;
   workspaceDirectory: string | null;
   isGitCheckout: boolean;
+  /** Where the branch list opens on desktop. Use "top-start" near the bottom of the window. */
+  desktopPlacement?: ComboboxDesktopPlacement;
   testID?: string;
 }
 
@@ -32,6 +39,7 @@ export function BranchSwitcher({
   workspaceId,
   workspaceDirectory,
   isGitCheckout,
+  desktopPlacement = "bottom-start",
   testID = "workspace-header-branch-switcher",
 }: BranchSwitcherProps) {
   const { t } = useTranslation();
@@ -108,7 +116,7 @@ export function BranchSwitcher({
         open={isOpen}
         onOpenChange={setIsOpen}
         anchorRef={anchorRef}
-        desktopPlacement="bottom-start"
+        desktopPlacement={desktopPlacement}
         desktopPreventInitialFlash
         desktopMinWidth={280}
         renderOption={renderBranchOption}

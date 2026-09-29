@@ -1021,6 +1021,14 @@ export const WorkspacePinSetRequestSchema = z.object({
   requestId: z.string(),
 });
 
+// Attaches a git branch to a workspace. Null or empty string detaches it.
+export const WorkspaceAttachedBranchSetRequestSchema = z.object({
+  type: z.literal("workspace.attached_branch.set.request"),
+  workspaceId: z.string(),
+  branch: z.string().nullable(),
+  requestId: z.string(),
+});
+
 export const WorkspaceLabelColorSchema = z.enum(WORKSPACE_LABEL_COLORS);
 export const WorkspaceLabelDefinitionSchema = z.object({
   name: z.string(),
@@ -2175,6 +2183,19 @@ export const WorkspacePinSetResponseSchema = z.object({
   payload: WorkspacePinSetResponsePayloadSchema,
 });
 
+export const WorkspaceAttachedBranchSetResponsePayloadSchema = z.object({
+  requestId: z.string(),
+  workspaceId: z.string(),
+  accepted: z.boolean(),
+  attachedBranch: z.string().nullable(),
+  error: z.string().nullable(),
+});
+
+export const WorkspaceAttachedBranchSetResponseSchema = z.object({
+  type: z.literal("workspace.attached_branch.set.response"),
+  payload: WorkspaceAttachedBranchSetResponsePayloadSchema,
+});
+
 export const WorkspaceRecoveryStateSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("recoverable"),
@@ -3284,6 +3305,7 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   ProjectDatabaseStatusRequestSchema,
   WorkspaceTitleSetRequestSchema,
   WorkspacePinSetRequestSchema,
+  WorkspaceAttachedBranchSetRequestSchema,
   WorkspaceLabelListRequestSchema,
   WorkspaceLabelAssignmentSetRequestSchema,
   WorkspaceLabelUpdateRequestSchema,
@@ -4124,6 +4146,10 @@ export const WorkspaceDescriptorPayloadSchema = z
     title: z.string().nullable().optional(),
     // COMPAT(workspacePinning): added in v0.1.107, remove optional after 2027-01-12.
     pinnedAt: z.string().nullable().optional(),
+    // COMPAT(workspaceAttachedBranch): added in v0.10.2 (fork), remove optional after 2027-09-29.
+    // The branch the user attached to this workspace. Git refreshes never write it,
+    // so it can differ from gitRuntime.currentBranch. Null means no attached branch.
+    attachedBranch: z.string().nullable().optional(),
     // COMPAT(workspaceLabels): added in v0.5.0, remove optional after 2027-08-14.
     labels: z.array(z.string()).optional(),
     archivingAt: z.string().nullable().optional().default(null),
@@ -6985,6 +7011,7 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   ProjectDatabaseStatusResponseSchema,
   WorkspaceTitleSetResponseSchema,
   WorkspacePinSetResponseSchema,
+  WorkspaceAttachedBranchSetResponseSchema,
   WorkspaceRecoveryInspectResponseSchema,
   WorkspaceRecoveryRestoreResponseSchema,
   WaitForFinishResponseMessageSchema,
@@ -7193,6 +7220,12 @@ export type WorkspaceTitleSetResponsePayload = z.infer<
 >;
 export type WorkspacePinSetResponse = z.infer<typeof WorkspacePinSetResponseSchema>;
 export type WorkspacePinSetResponsePayload = z.infer<typeof WorkspacePinSetResponsePayloadSchema>;
+export type WorkspaceAttachedBranchSetResponse = z.infer<
+  typeof WorkspaceAttachedBranchSetResponseSchema
+>;
+export type WorkspaceAttachedBranchSetResponsePayload = z.infer<
+  typeof WorkspaceAttachedBranchSetResponsePayloadSchema
+>;
 export type WorkspaceRecoveryState = z.infer<typeof WorkspaceRecoveryStateSchema>;
 export type WorkspaceRecoveryInspectResponse = z.infer<
   typeof WorkspaceRecoveryInspectResponseSchema
@@ -7343,6 +7376,9 @@ export type ProjectDatabaseCheckRequest = z.infer<typeof ProjectDatabaseCheckReq
 export type ProjectDatabaseStatusRequest = z.infer<typeof ProjectDatabaseStatusRequestSchema>;
 export type WorkspaceTitleSetRequest = z.infer<typeof WorkspaceTitleSetRequestSchema>;
 export type WorkspacePinSetRequest = z.infer<typeof WorkspacePinSetRequestSchema>;
+export type WorkspaceAttachedBranchSetRequest = z.infer<
+  typeof WorkspaceAttachedBranchSetRequestSchema
+>;
 export type WorkspaceRecoveryInspectRequest = z.infer<typeof WorkspaceRecoveryInspectRequestSchema>;
 export type WorkspaceRecoveryRestoreRequest = z.infer<typeof WorkspaceRecoveryRestoreRequestSchema>;
 export type SetAgentModeRequestMessage = z.infer<typeof SetAgentModeRequestMessageSchema>;

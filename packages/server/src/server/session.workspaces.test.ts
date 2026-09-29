@@ -78,6 +78,7 @@ import {
   type PersistedWorkspaceRecord,
   type WorkspaceMutation,
 } from "./workspace-registry.js";
+import { reconcileWorkspacePlacement } from "./workspace-registry-model.js";
 
 const REPO_CWD = path.resolve("/tmp/repo");
 const UNREGISTERED_CWD = path.resolve("/tmp/unregistered");
@@ -8288,6 +8289,99 @@ test("workspace.pin.set.request stores the pin timestamp and emits an updated de
       pinnedAt: response?.payload.pinnedAt,
     },
   });
+});
+
+test("workspace.attached_branch.set.request stores the branch, keeps it through a git refresh, and clears it", async () => {
+  const emitted: SessionOutboundMessage[] = [];
+  const session = asTestSession(
+    createSessionForWorkspaceTests({ onMessage: (message) => emitted.push(message) }),
+  );
+  const project = createPersistedProjectRecord({
+    projectId: "proj-1",
+    rootPath: REPO_CWD,
+    kind: "git",
+    displayName: "acme/repo",
+    createdAt: "2026-03-01T12:00:00.000Z",
+    updatedAt: "2026-03-01T12:00:00.000Z",
+  });
+  const workspace = createPersistedWorkspaceRecord({
+    workspaceId: "ws-1",
+    projectId: project.projectId,
+    cwd: REPO_CWD,
+    kind: "local_checkout",
+    displayName: "main",
+    branch: "main",
+    createdAt: "2026-03-01T12:00:00.000Z",
+    updatedAt: "2026-03-01T12:00:00.000Z",
+  });
+  const workspaces = new Map([[workspace.workspaceId, workspace]]);
+  session.projectRegistry.get = async (id: string) => (id === project.projectId ? project : null);
+  session.projectRegistry.list = async () => [project];
+  session.workspaceRegistry.list = async () => Array.from(workspaces.values());
+  session.workspaceRegistry.update = async (id, updater) => {
+    const existing = workspaces.get(id);
+    if (!existing) return null;
+    const updated = updater(existing);
+    workspaces.set(id, updated);
+    return updated;
+  };
+  await session.handleMessage({
+    type: "fetch_workspaces_request",
+    requestId: "sub-workspaces",
+    subscribe: { subscriptionId: "sub-workspaces" },
+  });
+
+  await session.handleMessage({
+    type: "workspace.attached_branch.set.request",
+    workspaceId: workspace.workspaceId,
+    branch: "  feature/login  ",
+    requestId: "req-attach-1",
+  });
+
+  expect(findByType(emitted, "workspace.attached_branch.set.response")?.payload).toEqual({
+    requestId: "req-attach-1",
+    workspaceId: "ws-1",
+    accepted: true,
+    attachedBranch: "feature/login",
+    error: null,
+  });
+  expect(findByType(emitted, "workspace_update")?.payload).toMatchObject({
+    kind: "upsert",
+    workspace: { id: "ws-1", attachedBranch: "feature/login" },
+  });
+
+  // A git refresh that observes another branch updates `branch` only.
+  const attached = workspaces.get("ws-1");
+  if (!attached) throw new Error("workspace ws-1 missing");
+  const refreshed = reconcileWorkspacePlacement({
+    workspace: attached,
+    checkout: {
+      cwd: REPO_CWD,
+      isGit: true,
+      currentBranch: "dev",
+      remoteUrl: null,
+      worktreeRoot: REPO_CWD,
+      isPaseoOwnedWorktree: false,
+      mainRepoRoot: null,
+    },
+    updatedAt: "2026-03-02T12:00:00.000Z",
+  });
+  expect(refreshed?.workspace.branch).toBe("dev");
+  expect(refreshed?.workspace.attachedBranch).toBe("feature/login");
+
+  emitted.length = 0;
+  await session.handleMessage({
+    type: "workspace.attached_branch.set.request",
+    workspaceId: workspace.workspaceId,
+    branch: "",
+    requestId: "req-attach-2",
+  });
+
+  expect(findByType(emitted, "workspace.attached_branch.set.response")?.payload).toMatchObject({
+    accepted: true,
+    attachedBranch: null,
+  });
+  expect(workspaces.get("ws-1")?.attachedBranch).toBeNull();
 });
 
 test("workspace.title.set.request with whitespace-only title clears the title", async () => {

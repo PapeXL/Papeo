@@ -16,13 +16,44 @@ import type { WorkspaceServiceSummary } from "./service-summary";
  * carries.
  */
 export type MetaRowItem =
-  | { kind: "branch"; name: string }
+  | ({ kind: "branch" } & WorkspaceRowBranch)
   | { kind: "project"; name: string }
   | { kind: "host" }
   | { kind: "changeRequest"; hint: PrHint }
   | { kind: "checks"; summary: CheckSummary; label: boolean }
   | { kind: "services"; summary: WorkspaceServiceSummary }
   | { kind: "labels"; labels: readonly WorkspaceLabelDefinition[] };
+
+/**
+ * The branch a workspace row names. `attached` means the user attached it to the workspace;
+ * `drift` means git has a different branch checked out in the workspace directory right now.
+ */
+export interface WorkspaceRowBranch {
+  name: string;
+  attached: boolean;
+  drift: boolean;
+}
+
+/**
+ * Which branch the row under a workspace title names: the attached branch when there is one,
+ * otherwise the branch git has checked out in the workspace directory.
+ */
+export function selectWorkspaceRowBranch(input: {
+  attachedBranch: string | null;
+  currentBranch: string | null;
+}): WorkspaceRowBranch | null {
+  if (input.attachedBranch) {
+    return {
+      name: input.attachedBranch,
+      attached: true,
+      drift: input.currentBranch !== null && input.currentBranch !== input.attachedBranch,
+    };
+  }
+  if (input.currentBranch) {
+    return { name: input.currentBranch, attached: false, drift: false };
+  }
+  return null;
+}
 
 /**
  * Which peers a row should draw, given what it knows and what the user left switched on.
@@ -35,7 +66,7 @@ export type MetaRowItem =
  * has no badge to hand down, so by the time a row sees one it is meant to be drawn.
  */
 export function selectMetaRowItems(input: {
-  currentBranch: string | null;
+  branch: WorkspaceRowBranch | null;
   projectName: string | null;
   hasHostBadge: boolean;
   prHint: PrHint | null;
@@ -45,7 +76,7 @@ export function selectMetaRowItems(input: {
   checksDisplay: SidebarChecksDisplay;
 }): MetaRowItem[] {
   const {
-    currentBranch,
+    branch,
     projectName,
     hasHostBadge,
     prHint,
@@ -57,8 +88,8 @@ export function selectMetaRowItems(input: {
   const items: MetaRowItem[] = [];
 
   // The database is not here. It is a line of its own under this one — see `database-line.ts`.
-  if (currentBranch && visible.branch) {
-    items.push({ kind: "branch", name: currentBranch });
+  if (branch && visible.branch) {
+    items.push({ kind: "branch", ...branch });
   }
   if (projectName && visible.project) {
     items.push({ kind: "project", name: projectName });

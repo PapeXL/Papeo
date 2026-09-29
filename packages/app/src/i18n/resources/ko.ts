@@ -1527,6 +1527,12 @@ export const ko: TranslationResources = {
     restore: "복원",
     later: "나중에",
     stashRestored: "스태시된 변경 사항이 복원되었습니다",
+    attach: "{{branchName}}을(를) 이 워크스페이스에 연결",
+    detach: "{{branchName}}을(를) 이 워크스페이스에서 연결 해제",
+    checkoutAttached: "{{branchName}} 체크아웃",
+    checkoutAttachedTooltip:
+      "이 워크스페이스는 {{branchName}}에 연결되어 있습니다. 눌러서 체크아웃하세요.",
+    failedToAttach: "연결된 브랜치를 업데이트하지 못했습니다",
   },
   agentAutocomplete: {
     searchingWorkspace: "워크스페이스 검색 중...",

@@ -1500,6 +1500,11 @@ export const zhCN: TranslationResources = {
     restore: "恢复",
     later: "稍后",
     stashRestored: "Stashed 变更已恢复",
+    attach: "将 {{branchName}} 关联到此工作区",
+    detach: "取消 {{branchName}} 与此工作区的关联",
+    checkoutAttached: "检出 {{branchName}}",
+    checkoutAttachedTooltip: "此工作区关联到 {{branchName}}。按下以检出该分支。",
+    failedToAttach: "无法更新关联的分支",
   },
   agentAutocomplete: {
     searchingWorkspace: "正在搜索 workspace...",

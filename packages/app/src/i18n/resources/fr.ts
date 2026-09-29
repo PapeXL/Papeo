@@ -1567,6 +1567,12 @@ export const fr: TranslationResources = {
     restore: "Restaurer",
     later: "Plus tard",
     stashRestored: "Modifications cachées restaurées",
+    attach: "Associer {{branchName}} à cet espace de travail",
+    detach: "Dissocier {{branchName}} de cet espace de travail",
+    checkoutAttached: "Basculer sur {{branchName}}",
+    checkoutAttachedTooltip:
+      "Cet espace de travail est associé à {{branchName}}. Appuyez pour basculer sur cette branche.",
+    failedToAttach: "Échec de la mise à jour de la branche associée",
   },
   agentAutocomplete: {
     searchingWorkspace: "Recherche dans l'espace de travail...",

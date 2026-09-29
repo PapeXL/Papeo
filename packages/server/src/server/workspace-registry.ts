@@ -100,6 +100,14 @@ const PersistedWorkspaceRecordSchema = z.object({
     .nullable()
     .optional()
     .transform((value) => value ?? null),
+  // The branch the user attached to this workspace. Unlike `branch`, reconciliation
+  // never writes it: it records intent, so it survives a checkout of another branch
+  // in the same directory.
+  attachedBranch: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null),
   // Lifecycle activity clock. Separate from updatedAt / sidebar statusEnteredAt.
   // COMPAT(workspaceLastActivityAt): added in v0.9.1, remove optional after 2027-03-23.
   lastActivityAt: z
@@ -700,6 +708,7 @@ export function createPersistedWorkspaceRecord(input: {
   lastActivityAt?: string | null;
   autoArchiveReason?: "merge" | "inactivity" | null;
   pinnedAt?: string | null;
+  attachedBranch?: string | null;
   labels?: string[];
   untrustedSource?: UntrustedWorkspaceSource;
 }): PersistedWorkspaceRecord {
@@ -716,6 +725,7 @@ export function createPersistedWorkspaceRecord(input: {
     lastActivityAt: input.lastActivityAt === undefined ? input.createdAt : input.lastActivityAt,
     autoArchiveReason: input.autoArchiveReason ?? null,
     pinnedAt: input.pinnedAt ?? null,
+    attachedBranch: input.attachedBranch ?? null,
   });
 }
 

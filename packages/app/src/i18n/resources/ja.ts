@@ -1534,6 +1534,12 @@ export const ja: TranslationResources = {
     restore: "復元",
     later: "後で",
     stashRestored: "スタッシュした変更を復元しました",
+    attach: "{{branchName}} をこのワークスペースに関連付ける",
+    detach: "{{branchName}} とこのワークスペースの関連付けを解除",
+    checkoutAttached: "{{branchName}} をチェックアウト",
+    checkoutAttachedTooltip:
+      "このワークスペースは {{branchName}} に関連付けられています。押すとチェックアウトします。",
+    failedToAttach: "関連付けたブランチを更新できませんでした",
   },
   agentAutocomplete: {
     searchingWorkspace: "ワークスペースを検索中...",

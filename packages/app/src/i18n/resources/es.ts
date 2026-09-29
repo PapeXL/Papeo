@@ -1563,6 +1563,12 @@ export const es: TranslationResources = {
     restore: "Restaurar",
     later: "Más tarde",
     stashRestored: "Se restauraron los cambios ocultos",
+    attach: "Vincular {{branchName}} a este espacio de trabajo",
+    detach: "Desvincular {{branchName}} de este espacio de trabajo",
+    checkoutAttached: "Cambiar a {{branchName}}",
+    checkoutAttachedTooltip:
+      "Este espacio de trabajo está vinculado a {{branchName}}. Pulsa para cambiar a esa rama.",
+    failedToAttach: "No se pudo actualizar la rama vinculada",
   },
   agentAutocomplete: {
     searchingWorkspace: "Buscando espacio de trabajo...",

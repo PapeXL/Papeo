@@ -57,6 +57,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { GitActionsSplitButton } from "@/git/actions-split-button";
 import type { GitActions } from "@/git/policy";
 import { BranchSwitcher } from "@/components/branch-switcher";
+import { AttachedBranchControl } from "@/components/attached-branch-control";
 import { useGitActions } from "@/git/use-actions";
 import { GIT_ACTION_ICONS } from "@/git/action-icons";
 import { buildForgeSignInCommand, getForgePresentation, type Forge } from "@/git/forge";
@@ -636,6 +637,13 @@ function ChangesRepositoryToolbar({
           workspaceDirectory={model.cwd}
           isGitCheckout
           testID="changes-branch-switcher"
+        />
+        <AttachedBranchControl
+          compact={compact}
+          currentBranchName={model.branchName}
+          serverId={model.serverId}
+          workspaceId={model.workspaceId ?? null}
+          workspaceDirectory={model.cwd}
         />
       </ChangesToolbarLeading>
       <ChangesToolbarTrailing>

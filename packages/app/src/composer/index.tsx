@@ -1002,6 +1002,8 @@ interface ComposerProps {
   submitLabel?: string;
   /** Overrides the mode's default placeholder, for text only the caller can build. */
   placeholder?: string;
+  /** Renders beneath the composer box, inside the same content column. */
+  footer?: ReactNode;
 }
 
 const EMPTY_ARRAY: readonly QueuedMessage[] = [];
@@ -1280,6 +1282,7 @@ function ComposerContentImpl({
   readOnly = false,
   submitLabel,
   placeholder,
+  footer,
 }: ComposerContentProps) {
   const mode = resolveComposerInputMode(inputMode);
   const { t } = useTranslation();
@@ -2507,6 +2510,7 @@ function ComposerContentImpl({
               />
               {pluginAttachments.picker}
             </View>
+            {footer}
           </View>
         </View>
       </View>

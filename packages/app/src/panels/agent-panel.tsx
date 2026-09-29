@@ -27,6 +27,7 @@ import { FileDropZone } from "@/components/file-drop/file-drop-zone";
 import { useRetainedPanelActive } from "@/components/retained-panel";
 import { RetainedChatContent } from "./retained-chat-content";
 import { Composer } from "@/composer";
+import { WorkspaceBranchBar } from "@/composer/branch-bar";
 import { useWorkspaceHasDiffStat } from "@/composer/workspace-diff-stat";
 import {
   resolveComposerTrackControlClearance,
@@ -1616,6 +1617,12 @@ function ActiveAgentComposer({
     ],
   );
 
+  const branchBar = useMemo(
+    () =>
+      workspaceId ? <WorkspaceBranchBar serverId={serverId} workspaceId={workspaceId} /> : null,
+    [serverId, workspaceId],
+  );
+
   return (
     <View style={animatedStaticStyles.inputAreaWrapper} onLayout={onInputAreaLayout}>
       <Composer
@@ -1642,6 +1649,7 @@ function ActiveAgentComposer({
         onMessageSent={onMessageSent}
         onClientSlashCommand={handleClientSlashCommand}
         isCompactLayout={isCompactComposerLayout}
+        footer={branchBar}
       />
     </View>
   );

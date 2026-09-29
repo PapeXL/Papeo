@@ -4014,6 +4014,49 @@ export class Session {
     }
   }
 
+  // Stores the user's branch intent only. The checkout itself stays a separate,
+  // explicit checkout_switch_branch_request, so attaching never touches the files.
+  private async handleWorkspaceAttachedBranchSetRequest(
+    workspaceId: string,
+    branch: string | null,
+    requestId: string,
+  ): Promise<void> {
+    const logContext = { workspaceId, branch, requestId };
+    this.sessionLogger.info(logContext, "session: workspace.attached_branch.set.request");
+    const emitResponse = (
+      accepted: boolean,
+      attachedBranch: string | null,
+      error: string | null,
+    ) => {
+      this.emit({
+        type: "workspace.attached_branch.set.response",
+        payload: { requestId, workspaceId, accepted, attachedBranch, error },
+      });
+    };
+
+    try {
+      const nextAttachedBranch = branch?.trim() || null;
+      const updatedAt = new Date().toISOString();
+      const updated = await this.workspaceRegistry.update(workspaceId, (existing) => ({
+        ...existing,
+        attachedBranch: nextAttachedBranch,
+        updatedAt,
+      }));
+      if (!updated) {
+        emitResponse(false, null, "Workspace not found");
+        return;
+      }
+      emitResponse(true, nextAttachedBranch, null);
+      await this.emitWorkspaceUpdatesForWorkspaceIds([workspaceId]);
+    } catch (error) {
+      this.sessionLogger.error(
+        { ...logContext, err: error },
+        "session: workspace.attached_branch.set.request error",
+      );
+      emitResponse(false, null, getErrorMessageOr(error, "Failed to attach branch"));
+    }
+  }
+
   private async handleWorkspaceRecoveryInspectRequest(
     request: Extract<SessionInboundMessage, { type: "workspace.recovery.inspect.request" }>,
   ): Promise<void> {
@@ -5783,6 +5826,7 @@ export class Session {
       name: resolveWorkspaceDisplayName(workspace),
       title: workspace.title,
       pinnedAt: workspace.pinnedAt,
+      attachedBranch: workspace.attachedBranch,
       ...(workspace.labels && workspace.labels.length > 0 ? { labels: workspace.labels } : {}),
       archivingAt: null,
       status: "done",
@@ -5875,6 +5919,7 @@ export class Session {
       }),
       title: result.workspace.title,
       pinnedAt: result.workspace.pinnedAt,
+      attachedBranch: result.workspace.attachedBranch,
       ...(result.workspace.labels && result.workspace.labels.length > 0
         ? { labels: result.workspace.labels }
         : {}),

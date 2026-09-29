@@ -1546,6 +1546,12 @@ export const ru: TranslationResources = {
     restore: "Восстановить",
     later: "Позже",
     stashRestored: "Изменения из stash восстановлены.",
+    attach: "Привязать {{branchName}} к этому рабочему пространству",
+    detach: "Отвязать {{branchName}} от этого рабочего пространства",
+    checkoutAttached: "Переключиться на {{branchName}}",
+    checkoutAttachedTooltip:
+      "Это рабочее пространство привязано к {{branchName}}. Нажмите, чтобы переключиться.",
+    failedToAttach: "Не удалось обновить привязанную ветку",
   },
   agentAutocomplete: {
     searchingWorkspace: "Поиск в рабочем пространстве...",

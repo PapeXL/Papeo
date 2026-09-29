@@ -150,7 +150,10 @@ import { useLocalDaemonServerId } from "@/hooks/use-is-local-daemon";
 import type { HostBadgeModel } from "@/hosts/appearance";
 import { useHostBadges } from "@/hosts/use-host-badges";
 import { HostBadge } from "@/hosts/host-badge";
-import { ProjectDatabaseLine } from "@/components/sidebar/workspace-meta-row";
+import {
+  ProjectMetaLines,
+  selectProjectCheckoutBranch,
+} from "@/components/sidebar/workspace-meta-row";
 import {
   selectProjectDatabaseLine,
   selectProjectDatabaseName,
@@ -274,6 +277,8 @@ interface ProjectHeaderRowProps {
   hostBadge?: HostBadgeModel | null;
   /** The project's database, when it declares one and the row item is on. */
   databaseName?: string | null;
+  /** The branch checked out in the project directory, when the branch row item is on. */
+  branchName?: string | null;
 }
 
 interface WorkspaceRowInnerProps {
@@ -863,17 +868,19 @@ function NewWorkspaceGhostRow({
 }
 
 /**
- * The project name, the host badge beside it, and the database under it. Its own component so
- * the header row stays flat: the column wrapper exists only to carry the database line.
+ * The project name, the host badge beside it, and the database and branch lines under it. Its own
+ * component so the header row stays flat: the column wrapper exists only to carry those lines.
  */
 function ProjectHeaderTitle({
   displayName,
   hostBadge,
   databaseName,
+  branchName,
 }: {
   displayName: string;
   hostBadge: HostBadgeModel | null;
   databaseName: string | null;
+  branchName?: string | null;
 }) {
   return (
     <View style={styles.projectTitleColumn}>
@@ -883,7 +890,7 @@ function ProjectHeaderTitle({
         </Text>
         {hostBadge ? <HostBadge badge={hostBadge} /> : null}
       </View>
-      {databaseName ? <ProjectDatabaseLine name={databaseName} /> : null}
+      <ProjectMetaLines branchName={branchName} databaseName={databaseName} />
     </View>
   );
 }
@@ -911,6 +918,7 @@ function ProjectHeaderRow({
   dragHandleProps,
   hostBadge = null,
   databaseName = null,
+  branchName,
 }: ProjectHeaderRowProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
@@ -1001,6 +1009,7 @@ function ProjectHeaderRow({
           displayName={displayName}
           hostBadge={hostBadge}
           databaseName={databaseName}
+          branchName={branchName}
         />
       </View>
       <ProjectRowTrailingActions
@@ -1687,6 +1696,16 @@ function ProjectBlock({
       }),
     [project.workspaces, rowItems, workspaceEntriesByKey],
   );
+  // The live branch of the project directory. Workspace rows name the branch attached to them.
+  const projectBranchLine = useMemo(
+    () =>
+      rowItems.branch
+        ? selectProjectCheckoutBranch(
+            project.workspaces.map((item) => workspaceEntriesByKey.get(item.workspaceKey) ?? null),
+          )
+        : null,
+    [project.workspaces, rowItems.branch, workspaceEntriesByKey],
+  );
 
   const renderWorkspaceRow = useCallback(
     (
@@ -1887,6 +1906,7 @@ function ProjectBlock({
         dragHandleProps={dragHandleProps}
         hostBadge={singleHostBadge}
         databaseName={projectDatabaseLine}
+        branchName={projectBranchLine}
       />
 
       {projectChildren}

@@ -2,7 +2,7 @@ import { Fragment, useCallback, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View, type GestureResponderEvent } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { Database, ExternalLink, Folder, GitBranch, Globe } from "lucide-react-native";
+import { Database, ExternalLink, Folder, GitBranch, Globe, Link2 } from "lucide-react-native";
 import {
   workspaceLabelKey,
   type WorkspaceLabelDefinition,
@@ -18,7 +18,7 @@ import type { Theme } from "@/styles/theme";
 import { PullRequestStateIcon } from "@/git/pull-request-state-icon";
 import { CheckIndicator } from "./check-indicator";
 import type { CheckSummary, CheckSummaryState } from "./check-summary";
-import { selectMetaRowItems, type MetaRowItem } from "./meta-items";
+import { selectMetaRowItems, type MetaRowItem, type WorkspaceRowBranch } from "./meta-items";
 import { workspaceServiceLabelKey, type WorkspaceServiceSummary } from "./service-summary";
 
 export {
@@ -26,6 +26,8 @@ export {
   workspaceServiceLabelKey,
   type WorkspaceServiceSummary,
 } from "./service-summary";
+export { selectWorkspaceRowBranch, type WorkspaceRowBranch } from "./meta-items";
+export { selectProjectCheckoutBranch } from "./project-branch";
 
 /**
  * One size for every glyph on the line. The items are peers — host, change request, CI,
@@ -39,6 +41,7 @@ const ThemedExternalLink = withUnistyles(ExternalLink);
 const ThemedFolder = withUnistyles(Folder);
 const ThemedGitBranch = withUnistyles(GitBranch);
 const ThemedGlobe = withUnistyles(Globe);
+const ThemedLink2 = withUnistyles(Link2);
 
 /** Stable identity so a row without labels doesn't re-select its items on every render. */
 const EMPTY_LABELS: readonly WorkspaceLabelDefinition[] = [];
@@ -46,6 +49,7 @@ const EMPTY_LABELS: readonly WorkspaceLabelDefinition[] = [];
 const foregroundMapping = (theme: Theme) => ({ color: theme.colors.foreground });
 const mutedMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 const dangerMapping = (theme: Theme) => ({ color: theme.colors.statusDanger });
+const warningMapping = (theme: Theme) => ({ color: theme.colors.statusWarning });
 
 /**
  * The subtitle under a workspace title: which host it lives on, its change request, that
@@ -62,14 +66,14 @@ const dangerMapping = (theme: Theme) => ({ color: theme.colors.statusDanger });
  * read first, and it stays the same height as the rest of the line.
  */
 export function WorkspaceMetaRow({
-  currentBranch,
+  branch,
   projectName,
   hostBadge,
   prHint,
   serviceSummary,
   labels = EMPTY_LABELS,
 }: {
-  currentBranch: string | null;
+  branch: WorkspaceRowBranch | null;
   projectName: string | null;
   hostBadge: HostBadgeModel | null;
   prHint: PrHint | null;
@@ -78,7 +82,7 @@ export function WorkspaceMetaRow({
 }) {
   const { rowItems, checksDisplay } = useSidebarMetaPreferences();
   const items = selectMetaRowItems({
-    currentBranch,
+    branch,
     projectName,
     hasHostBadge: hostBadge !== null,
     prHint,
@@ -113,7 +117,7 @@ function MetaItemNode({
   leading: boolean;
 }): ReactNode {
   if (item.kind === "branch") {
-    return <IdentityItem kind="branch" name={item.name} />;
+    return <BranchItem branch={item} />;
   }
   if (item.kind === "project") {
     return <IdentityItem kind="project" name={item.name} />;
@@ -134,22 +138,78 @@ function MetaItemNode({
 }
 
 const IDENTITY_ICONS = {
-  branch: ThemedGitBranch,
   project: ThemedFolder,
 } as const;
 
 /**
- * The database line on a project header. It borrows the meta line's ink and glyph size, so the
- * project's second line and a workspace's second line read as the same kind of text.
+ * The lines under a project header: the database, then the branch checked out in the project
+ * directory. They borrow the meta line's ink and glyph size, so the project's lines and a
+ * workspace's second line read as the same kind of text.
  */
-export function ProjectDatabaseLine({ name }: { name: string }) {
+export function ProjectMetaLines({
+  branchName,
+  databaseName,
+}: {
+  branchName?: string | null;
+  databaseName: string | null;
+}) {
   return (
-    <View style={styles.identityItem} testID="sidebar-project-database">
+    <>
+      {databaseName ? (
+        <ProjectIdentityLine
+          icon={ThemedDatabase}
+          name={databaseName}
+          testID="sidebar-project-database"
+        />
+      ) : null}
+      {branchName ? (
+        <ProjectIdentityLine
+          icon={ThemedGitBranch}
+          name={branchName}
+          testID="sidebar-project-branch"
+        />
+      ) : null}
+    </>
+  );
+}
+
+function ProjectIdentityLine({
+  icon: Icon,
+  name,
+  testID,
+}: {
+  icon: typeof ThemedDatabase | typeof ThemedGitBranch;
+  name: string;
+  testID: string;
+}) {
+  return (
+    <View style={styles.identityItem} testID={testID}>
       <View style={styles.identityIcon}>
-        <ThemedDatabase size={META_ICON_SIZE} uniProps={mutedMapping} />
+        <Icon size={META_ICON_SIZE} uniProps={mutedMapping} />
       </View>
       <Text style={styles.identityText} numberOfLines={1}>
         {name}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * The workspace's branch. An attached branch takes the link glyph, so it does not read as the
+ * live branch; when git has another branch checked out it turns warning, glyph and name together.
+ */
+function BranchItem({ branch }: { branch: WorkspaceRowBranch }) {
+  const Icon = branch.attached ? ThemedLink2 : ThemedGitBranch;
+  return (
+    <View
+      style={styles.identityItem}
+      testID={branch.drift ? "sidebar-workspace-branch-drift" : "sidebar-workspace-branch"}
+    >
+      <View style={styles.identityIcon}>
+        <Icon size={META_ICON_SIZE} uniProps={branch.drift ? warningMapping : mutedMapping} />
+      </View>
+      <Text style={branch.drift ? styles.identityTextDrift : styles.identityText} numberOfLines={1}>
+        {branch.name}
       </Text>
     </View>
   );
@@ -358,6 +418,12 @@ const styles = StyleSheet.create((theme) => ({
   },
   identityText: {
     color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.sm,
+    lineHeight: 16,
+    flexShrink: 1,
+  },
+  identityTextDrift: {
+    color: theme.colors.statusWarning,
     fontSize: theme.fontSize.sm,
     lineHeight: 16,
     flexShrink: 1,

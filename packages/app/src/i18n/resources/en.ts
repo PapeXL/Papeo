@@ -1542,6 +1542,11 @@ export const en = {
     restore: "Restore",
     later: "Later",
     stashRestored: "Stashed changes restored",
+    attach: "Attach {{branchName}} to this workspace",
+    detach: "Detach {{branchName}} from this workspace",
+    checkoutAttached: "Checkout {{branchName}}",
+    checkoutAttachedTooltip: "This workspace is attached to {{branchName}}. Press to check it out.",
+    failedToAttach: "Failed to update the attached branch",
   },
   agentAutocomplete: {
     searchingWorkspace: "Searching workspace...",

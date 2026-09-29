@@ -3,7 +3,8 @@ import type { WorkspaceLabelDefinition } from "@getpaseo/protocol/workspace-labe
 import type { PrHint } from "@/git/pr-hint";
 import { DEFAULT_SIDEBAR_CHECKS_DISPLAY } from "@/components/sidebar/display-preferences/checks-display";
 import { DEFAULT_SIDEBAR_ROW_ITEMS } from "@/components/sidebar/display-preferences/row-items";
-import { selectMetaRowItems } from "./meta-items";
+import { selectMetaRowItems, selectWorkspaceRowBranch } from "./meta-items";
+import { selectProjectCheckoutBranch } from "./project-branch";
 import type { WorkspaceServiceSummary } from "./service-summary";
 
 const PR_HINT: PrHint = {
@@ -20,7 +21,7 @@ const LABELS: WorkspaceLabelDefinition[] = [{ name: "Urgent", color: "red" }];
 
 function select(overrides: Partial<Parameters<typeof selectMetaRowItems>[0]> = {}) {
   return selectMetaRowItems({
-    currentBranch: "feature/sidebar-badges",
+    branch: { name: "feature/sidebar-badges", attached: false, drift: false },
     projectName: "Paseo",
     hasHostBadge: true,
     prHint: PR_HINT,
@@ -63,7 +64,7 @@ describe("selectMetaRowItems", () => {
     expect(
       kinds(
         select({
-          currentBranch: null,
+          branch: null,
           projectName: null,
           hasHostBadge: false,
           prHint: null,
@@ -76,7 +77,7 @@ describe("selectMetaRowItems", () => {
 
   it("only draws identity badges when enabled and available", () => {
     const visible = { ...DEFAULT_SIDEBAR_ROW_ITEMS, branch: true, project: true };
-    expect(kinds(select({ currentBranch: null, projectName: null, visible }))).toEqual([
+    expect(kinds(select({ branch: null, projectName: null, visible }))).toEqual([
       "host",
       "changeRequest",
       "checks",
@@ -150,5 +151,54 @@ describe("selectMetaRowItems", () => {
   it("keeps a change request whose forge reports no checks", () => {
     const items = select({ prHint: { ...PR_HINT, checksStatus: undefined } });
     expect(kinds(items)).toEqual(["branch", "host", "changeRequest", "services", "labels"]);
+  });
+});
+
+describe("selectWorkspaceRowBranch", () => {
+  it("names the attached branch, and marks drift when git has another branch checked out", () => {
+    expect(
+      selectWorkspaceRowBranch({
+        attachedBranch: "feature/login",
+        currentBranch: "dev",
+      }),
+    ).toEqual({ name: "feature/login", attached: true, drift: true });
+    expect(
+      selectWorkspaceRowBranch({
+        attachedBranch: "feature/login",
+        currentBranch: "feature/login",
+      }),
+    ).toEqual({ name: "feature/login", attached: true, drift: false });
+  });
+
+  it("names the checked-out branch when nothing is attached", () => {
+    expect(
+      selectWorkspaceRowBranch({
+        attachedBranch: null,
+        currentBranch: "dev",
+      }),
+    ).toEqual({ name: "dev", attached: false, drift: false });
+  });
+
+  it("names nothing when there is neither an attached nor a checked-out branch", () => {
+    expect(selectWorkspaceRowBranch({ attachedBranch: null, currentBranch: null })).toBeNull();
+  });
+});
+
+describe("selectProjectCheckoutBranch", () => {
+  it("answers with the first shared-checkout workspace and ignores worktrees", () => {
+    expect(
+      selectProjectCheckoutBranch([
+        null,
+        { workspaceKind: "worktree", currentBranch: "feature/wt" },
+        { workspaceKind: "local_checkout", currentBranch: null },
+        { workspaceKind: "local_checkout", currentBranch: "dev" },
+      ]),
+    ).toBe("dev");
+  });
+
+  it("is null when only worktrees report a branch", () => {
+    expect(
+      selectProjectCheckoutBranch([{ workspaceKind: "worktree", currentBranch: "feature/wt" }]),
+    ).toBeNull();
   });
 });

@@ -1517,6 +1517,11 @@ export const ar: TranslationResources = {
     restore: "يعيد",
     later: "لاحقاً",
     stashRestored: "تمت استعادة التغييرات المخفية",
+    attach: "ربط {{branchName}} بمساحة العمل هذه",
+    detach: "فك ربط {{branchName}} من مساحة العمل هذه",
+    checkoutAttached: "التبديل إلى {{branchName}}",
+    checkoutAttachedTooltip: "مساحة العمل هذه مرتبطة بـ {{branchName}}. اضغط للتبديل إليه.",
+    failedToAttach: "فشل تحديث الفرع المرتبط",
   },
   agentAutocomplete: {
     searchingWorkspace: "جارٍ البحث في مساحة العمل...",

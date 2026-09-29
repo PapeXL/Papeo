@@ -1548,6 +1548,12 @@ export const ptBR: TranslationResources = {
     restore: "Restaurar",
     later: "Depois",
     stashRestored: "Alterações em stash restauradas",
+    attach: "Vincular {{branchName}} a este espaço de trabalho",
+    detach: "Desvincular {{branchName}} deste espaço de trabalho",
+    checkoutAttached: "Fazer checkout de {{branchName}}",
+    checkoutAttachedTooltip:
+      "Este espaço de trabalho está vinculado a {{branchName}}. Toque para fazer checkout.",
+    failedToAttach: "Falha ao atualizar o branch vinculado",
   },
   agentAutocomplete: {
     searchingWorkspace: "Buscando workspace...",
