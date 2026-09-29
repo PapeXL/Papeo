@@ -10,8 +10,13 @@ export const FORK_HOME_DIR_NAME = ".papeo";
 export const FORK_CLI_NAME = "papeo";
 export const FORK_DEFAULT_LISTEN = "127.0.0.1:6866";
 
+/**
+ * Never read PASEO_HOME here. Anything started from stock Paseo — its terminals, its agents —
+ * exports the stock home, and honouring it attaches the fork to the stock daemon on 6767.
+ * PAPEO_HOME is the explicit override.
+ */
 export function resolveForkHome(env: NodeJS.ProcessEnv = process.env): string {
-  return env.PASEO_HOME ?? join(homedir(), FORK_HOME_DIR_NAME);
+  return env.PAPEO_HOME ?? join(homedir(), FORK_HOME_DIR_NAME);
 }
 
 /**
