@@ -965,6 +965,39 @@ export const ProjectRemoveRequestSchema = z.object({
   requestId: z.string(),
 });
 
+// Changes the database a SPY dev system's config.inc.xml names, and lets PhpStorm upload it.
+export const ProjectDatabaseSetRequestSchema = z.object({
+  type: z.literal("project.database.set.request"),
+  projectId: z.string(),
+  databaseName: z.string(),
+  requestId: z.string(),
+});
+
+// Lists the databases the project's own MySQL login sees on the server. Null or absent
+// `namePrefix` lets the daemon choose (the test_<initials>_ start of the current database).
+// "Check again" after a late upload: asks PhpStorm to read the config once more, then compares
+// the server's database with the local one. Writes nothing.
+export const ProjectDatabaseCheckRequestSchema = z.object({
+  type: z.literal("project.database.check.request"),
+  projectId: z.string(),
+  requestId: z.string(),
+});
+
+// Branch, code release (newest tools/upgrades folder) and database release (system|spy_release)
+// of a SPY dev system, so the page can say when migrations are due. Read only.
+export const ProjectDatabaseStatusRequestSchema = z.object({
+  type: z.literal("project.database.status.request"),
+  projectId: z.string(),
+  requestId: z.string(),
+});
+
+export const ProjectDatabaseListRequestSchema = z.object({
+  type: z.literal("project.database.list.request"),
+  projectId: z.string(),
+  namePrefix: z.string().nullable().optional(),
+  requestId: z.string(),
+});
+
 export const WorkspaceTitleSetRequestSchema = z.object({
   type: z.literal("workspace.title.set.request"),
   workspaceId: z.string(),
@@ -2045,6 +2078,67 @@ export const ProjectRemoveResponsePayloadSchema = z.object({
 export const ProjectRemoveResponseSchema = z.object({
   type: z.literal("project.remove.response"),
   payload: ProjectRemoveResponsePayloadSchema,
+});
+
+// Whether the new value reached the server. "unavailable" carries why the daemon could not
+// read the remote; the local change stands either way.
+export const ProjectDatabaseRemoteCheckSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("verified") }),
+  z.object({ status: z.literal("mismatch"), remoteDatabaseName: z.string().nullable() }),
+  z.object({ status: z.literal("unavailable"), reason: z.string() }),
+]);
+
+export const ProjectDatabaseSetResponsePayloadSchema = z.object({
+  requestId: z.string(),
+  projectId: z.string(),
+  accepted: z.boolean(),
+  databaseName: z.string().nullable(),
+  openedPhpStorm: z.boolean(),
+  remoteCheck: ProjectDatabaseRemoteCheckSchema.nullable(),
+  error: z.string().nullable(),
+});
+
+export const ProjectDatabaseSetResponseSchema = z.object({
+  type: z.literal("project.database.set.response"),
+  payload: ProjectDatabaseSetResponsePayloadSchema,
+});
+
+export const ProjectDatabaseCheckResponseSchema = z.object({
+  type: z.literal("project.database.check.response"),
+  payload: z.object({
+    requestId: z.string(),
+    projectId: z.string(),
+    // The local database the server was compared with. Null on error.
+    databaseName: z.string().nullable(),
+    remoteCheck: ProjectDatabaseRemoteCheckSchema.nullable(),
+    error: z.string().nullable(),
+  }),
+});
+
+export const ProjectDatabaseStatusResponseSchema = z.object({
+  type: z.literal("project.database.status.response"),
+  payload: z.object({
+    requestId: z.string(),
+    projectId: z.string(),
+    branch: z.string().nullable(),
+    codeRelease: z.number().nullable(),
+    databaseRelease: z.number().nullable(),
+    databaseReleaseError: z.string().nullable(),
+    state: z.enum(["in_sync", "migrations_due", "database_ahead", "unknown"]),
+    error: z.string().nullable(),
+  }),
+});
+
+export const ProjectDatabaseListResponseSchema = z.object({
+  type: z.literal("project.database.list.response"),
+  payload: z.object({
+    requestId: z.string(),
+    projectId: z.string(),
+    databases: z.array(z.string()),
+    // The prefix the daemon filtered by; empty means no filter. Null on error.
+    namePrefix: z.string().nullable(),
+    error: z.string().nullable(),
+  }),
 });
 
 export const WorkspaceTitleSetResponsePayloadSchema = z.object({
@@ -3176,6 +3270,10 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   ProjectRenameRequestSchema,
   ProjectIconSetRequestSchema,
   ProjectRemoveRequestSchema,
+  ProjectDatabaseSetRequestSchema,
+  ProjectDatabaseListRequestSchema,
+  ProjectDatabaseCheckRequestSchema,
+  ProjectDatabaseStatusRequestSchema,
   WorkspaceTitleSetRequestSchema,
   WorkspacePinSetRequestSchema,
   WorkspaceLabelListRequestSchema,
@@ -3644,6 +3742,16 @@ export const ServerInfoStatusPayloadSchema = z
         providerSubagentNesting: z.boolean().optional(),
         // COMPAT(workspacePinning): added in v0.1.107, remove gate after 2027-01-12.
         workspacePinning: z.boolean().optional(),
+        // COMPAT(projectDatabaseSet): added in v0.10.2 (fork), remove gate after 2027-09-29.
+        projectDatabaseSet: z.boolean().optional(),
+        // COMPAT(projectDatabaseList): added in v0.10.2 (fork), remove gate after 2027-09-29.
+        projectDatabaseList: z.boolean().optional(),
+        // COMPAT(projectDatabaseCheck): added in v0.10.2 (fork), remove gate after 2027-09-29.
+        projectDatabaseCheck: z.boolean().optional(),
+        // COMPAT(projectDatabaseStatus): added in v0.10.2 (fork), remove gate after 2027-09-29.
+        projectDatabaseStatus: z.boolean().optional(),
+        // COMPAT(workspaceAttachedBranch): added in v0.10.2 (fork), remove gate after 2027-09-29.
+        workspaceAttachedBranch: z.boolean().optional(),
         // COMPAT(workspaceMarkUnread): added in v0.5.0, remove after 2027-08-20.
         workspaceMarkUnread: z.boolean().optional(),
         // COMPAT(hubRelationship): added in v0.1.X, drop the gate when floor >= v0.1.X.
@@ -4183,6 +4291,10 @@ export const WorkspaceProjectDescriptorPayloadSchema = z.object({
   // COMPAT(projectIconCache): added in v0.2.7, remove optional after 2027-02-12.
   projectIconRevision: z.string().optional(),
   projectRootPath: z.string(),
+  // Same value as the workspace field of that name, so a project with no workspace still says
+  // which database it uses. Added in v0.10.2 (fork); absent without a SPY config and on older
+  // daemons.
+  projectDatabaseName: z.string().optional(),
   projectKind: z.enum(["git", "non_git", "directory"]),
   // COMPAT(directorySync): sequence of this latest directory projection.
   syncSeq: z.number().int().positive().optional(),
@@ -6856,6 +6968,10 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   ProjectRenameResponseSchema,
   ProjectIconSetResponseSchema,
   ProjectRemoveResponseSchema,
+  ProjectDatabaseSetResponseSchema,
+  ProjectDatabaseListResponseSchema,
+  ProjectDatabaseCheckResponseSchema,
+  ProjectDatabaseStatusResponseSchema,
   WorkspaceTitleSetResponseSchema,
   WorkspacePinSetResponseSchema,
   WorkspaceRecoveryInspectResponseSchema,
@@ -7055,6 +7171,11 @@ export type UpdateAgentResponseMessage = z.infer<typeof UpdateAgentResponseMessa
 export type ProjectRenameResponse = z.infer<typeof ProjectRenameResponseSchema>;
 export type ProjectIconSetResponse = z.infer<typeof ProjectIconSetResponseSchema>;
 export type ProjectRemoveResponse = z.infer<typeof ProjectRemoveResponseSchema>;
+export type ProjectDatabaseSetResponse = z.infer<typeof ProjectDatabaseSetResponseSchema>;
+export type ProjectDatabaseListResponse = z.infer<typeof ProjectDatabaseListResponseSchema>;
+export type ProjectDatabaseCheckResponse = z.infer<typeof ProjectDatabaseCheckResponseSchema>;
+export type ProjectDatabaseStatusResponse = z.infer<typeof ProjectDatabaseStatusResponseSchema>;
+export type ProjectDatabaseRemoteCheck = z.infer<typeof ProjectDatabaseRemoteCheckSchema>;
 export type WorkspaceTitleSetResponse = z.infer<typeof WorkspaceTitleSetResponseSchema>;
 export type WorkspaceTitleSetResponsePayload = z.infer<
   typeof WorkspaceTitleSetResponsePayloadSchema
@@ -7205,6 +7326,10 @@ export type ProjectIconSource = z.infer<typeof ProjectIconSourceSchema>;
 export type ProjectRenameRequest = z.infer<typeof ProjectRenameRequestSchema>;
 export type ProjectIconSetRequest = z.infer<typeof ProjectIconSetRequestSchema>;
 export type ProjectRemoveRequest = z.infer<typeof ProjectRemoveRequestSchema>;
+export type ProjectDatabaseSetRequest = z.infer<typeof ProjectDatabaseSetRequestSchema>;
+export type ProjectDatabaseListRequest = z.infer<typeof ProjectDatabaseListRequestSchema>;
+export type ProjectDatabaseCheckRequest = z.infer<typeof ProjectDatabaseCheckRequestSchema>;
+export type ProjectDatabaseStatusRequest = z.infer<typeof ProjectDatabaseStatusRequestSchema>;
 export type WorkspaceTitleSetRequest = z.infer<typeof WorkspaceTitleSetRequestSchema>;
 export type WorkspacePinSetRequest = z.infer<typeof WorkspacePinSetRequestSchema>;
 export type WorkspaceRecoveryInspectRequest = z.infer<typeof WorkspaceRecoveryInspectRequestSchema>;

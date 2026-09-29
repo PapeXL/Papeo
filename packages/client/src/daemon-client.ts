@@ -75,6 +75,8 @@ import type {
   PaseoWorktreeListResponse,
   PaseoWorktreeArchiveResponse,
   ProjectIconSource,
+  ProjectDatabaseRemoteCheck,
+  ProjectDatabaseStatusResponse,
   ProjectIconResponse,
   ProjectIconGetResponse,
   ProjectAddResponse,
@@ -3017,6 +3019,91 @@ export class DaemonClient {
       message: { type: "project.icon.set.request", projectId, source },
     });
     if (!payload.accepted) throw new Error(payload.error ?? "setProjectIcon rejected");
+  }
+
+  /**
+   * Changes the project's SPY database. The daemon may open PhpStorm and waits for the upload,
+   * so this allows minutes, not the usual RPC timeout.
+   */
+  async setProjectDatabase(input: {
+    projectId: string;
+    databaseName: string;
+    requestId?: string;
+  }): Promise<{
+    databaseName: string;
+    openedPhpStorm: boolean;
+    remoteCheck: ProjectDatabaseRemoteCheck;
+  }> {
+    const payload =
+      await this.sendNamespacedCorrelatedSessionRequest<"project.database.set.response">({
+        requestId: input.requestId,
+        message: {
+          type: "project.database.set.request",
+          projectId: input.projectId,
+          databaseName: input.databaseName,
+        },
+        timeout: 180_000,
+      });
+    if (!payload.accepted || payload.databaseName === null || payload.remoteCheck === null) {
+      throw new Error(payload.error ?? "setProjectDatabase rejected");
+    }
+    return {
+      databaseName: payload.databaseName,
+      openedPhpStorm: payload.openedPhpStorm,
+      remoteCheck: payload.remoteCheck,
+    };
+  }
+
+  /** Branch, code release and database release of a SPY project. Read only. */
+  async getProjectDatabaseStatus(input: {
+    projectId: string;
+    requestId?: string;
+  }): Promise<Omit<ProjectDatabaseStatusResponse["payload"], "requestId" | "projectId" | "error">> {
+    const payload =
+      await this.sendNamespacedCorrelatedSessionRequest<"project.database.status.response">({
+        requestId: input.requestId,
+        message: { type: "project.database.status.request", projectId: input.projectId },
+      });
+    if (payload.error !== null) throw new Error(payload.error);
+    const { requestId: _requestId, projectId: _projectId, error: _error, ...status } = payload;
+    return status;
+  }
+
+  /** "Check again": has PhpStorm read the config once more and compares the server with it. */
+  async checkProjectDatabase(input: {
+    projectId: string;
+    requestId?: string;
+  }): Promise<{ databaseName: string; remoteCheck: ProjectDatabaseRemoteCheck }> {
+    const payload =
+      await this.sendNamespacedCorrelatedSessionRequest<"project.database.check.response">({
+        requestId: input.requestId,
+        message: { type: "project.database.check.request", projectId: input.projectId },
+      });
+    if (payload.error !== null || payload.databaseName === null || payload.remoteCheck === null) {
+      throw new Error(payload.error ?? "checkProjectDatabase rejected");
+    }
+    return { databaseName: payload.databaseName, remoteCheck: payload.remoteCheck };
+  }
+
+  /** Databases the project could switch to, filtered by name prefix (null: daemon's default). */
+  async listProjectDatabases(input: {
+    projectId: string;
+    namePrefix?: string | null;
+    requestId?: string;
+  }): Promise<{ databases: string[]; namePrefix: string }> {
+    const payload =
+      await this.sendNamespacedCorrelatedSessionRequest<"project.database.list.response">({
+        requestId: input.requestId,
+        message: {
+          type: "project.database.list.request",
+          projectId: input.projectId,
+          namePrefix: input.namePrefix ?? null,
+        },
+      });
+    if (payload.error !== null || payload.namePrefix === null) {
+      throw new Error(payload.error ?? "listProjectDatabases rejected");
+    }
+    return { databases: payload.databases, namePrefix: payload.namePrefix };
   }
 
   async removeProject(

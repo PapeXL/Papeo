@@ -657,6 +657,7 @@ describe("ReplicaCache", () => {
         projectCustomName: null,
         projectCustomIconRevision: null,
         projectRootPath: "/repo/paseo",
+        projectDatabaseName: null,
         projectKind: "git",
       }),
     });

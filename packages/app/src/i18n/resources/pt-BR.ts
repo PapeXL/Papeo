@@ -1187,6 +1187,7 @@ export const ptBR: TranslationResources = {
       sessions: "Histórico",
       search: "Buscar",
       schedules: "Agendamentos",
+      databases: "Bancos de dados",
     },
     worktreeSetup: {
       title: "Configurar scripts de worktree",

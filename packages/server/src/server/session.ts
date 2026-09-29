@@ -270,6 +270,12 @@ import {
 } from "./project-directory-service.js";
 import { runGitCommand } from "../utils/run-git-command.js";
 import { readProjectDatabaseName } from "../utils/spy-database.js";
+import {
+  recheckProjectDatabaseUpload,
+  switchProjectDatabase,
+} from "../utils/spy-database-switch.js";
+import { listProjectDatabases } from "../utils/spy-database-list.js";
+import { readProjectDatabaseStatus } from "../utils/spy-database-status.js";
 import { CreateAgentLifecycleDispatch } from "./agent/create-agent-lifecycle-dispatch.js";
 import { resolveWorktreeSourceCwd } from "./workspace-source.js";
 
@@ -2314,6 +2320,7 @@ export class Session {
       this.dispatchWorkspaceStateMessage(msg) ??
       this.dispatchWorkspaceLabelMessage(msg) ??
       this.dispatchWorkspaceSetupMessage(msg) ??
+      this.dispatchProjectDatabaseMessage(msg) ??
       this.dispatchWorkspaceAndProjectMessage(msg)
     );
   }
@@ -2913,6 +2920,27 @@ export class Session {
         return this.handleWorkspaceTitleSetRequest(msg.workspaceId, msg.title, msg.requestId);
       case "workspace.pin.set.request":
         return this.handleWorkspacePinSetRequest(msg.workspaceId, msg.pinned, msg.requestId);
+      case "workspace.attached_branch.set.request":
+        return this.handleWorkspaceAttachedBranchSetRequest(
+          msg.workspaceId,
+          msg.branch,
+          msg.requestId,
+        );
+      default:
+        return undefined;
+    }
+  }
+
+  private dispatchProjectDatabaseMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    switch (msg.type) {
+      case "project.database.set.request":
+        return this.handleProjectDatabaseSetRequest(msg);
+      case "project.database.list.request":
+        return this.handleProjectDatabaseListRequest(msg);
+      case "project.database.check.request":
+        return this.handleProjectDatabaseCheckRequest(msg);
+      case "project.database.status.request":
+        return this.handleProjectDatabaseStatusRequest(msg);
       default:
         return undefined;
     }
@@ -3571,6 +3599,201 @@ export class Session {
         type: "project.icon.get.response",
         payload: { projectId, icon: null, error: getErrorMessage(error), requestId },
       });
+    }
+  }
+
+  private async handleProjectDatabaseStatusRequest(
+    request: Extract<SessionInboundMessage, { type: "project.database.status.request" }>,
+  ): Promise<void> {
+    const { projectId, requestId } = request;
+    const empty = {
+      branch: null,
+      codeRelease: null,
+      databaseRelease: null,
+      databaseReleaseError: null,
+      state: "unknown" as const,
+    };
+    const project = await this.projectRegistry.get(projectId);
+    if (!project) {
+      this.emit({
+        type: "project.database.status.response",
+        payload: { requestId, projectId, ...empty, error: "Project not found" },
+      });
+      return;
+    }
+    try {
+      const status = await readProjectDatabaseStatus({ projectRootPath: project.rootPath });
+      this.emit({
+        type: "project.database.status.response",
+        payload: { requestId, projectId, ...status, error: null },
+      });
+    } catch (error) {
+      this.sessionLogger.warn(
+        { err: error, projectId, requestId },
+        "session: project.database.status.request failed",
+      );
+      this.emit({
+        type: "project.database.status.response",
+        payload: {
+          requestId,
+          projectId,
+          ...empty,
+          error: getErrorMessageOr(error, "Failed to read the release status"),
+        },
+      });
+    }
+  }
+
+  private async handleProjectDatabaseCheckRequest(
+    request: Extract<SessionInboundMessage, { type: "project.database.check.request" }>,
+  ): Promise<void> {
+    const { projectId, requestId } = request;
+    const project = await this.projectRegistry.get(projectId);
+    if (!project) {
+      this.emit({
+        type: "project.database.check.response",
+        payload: {
+          requestId,
+          projectId,
+          databaseName: null,
+          remoteCheck: null,
+          error: "Project not found",
+        },
+      });
+      return;
+    }
+    try {
+      const result = await recheckProjectDatabaseUpload({ projectRootPath: project.rootPath });
+      this.emit({
+        type: "project.database.check.response",
+        payload: {
+          requestId,
+          projectId,
+          databaseName: result.databaseName,
+          remoteCheck: result.remoteCheck,
+          error: null,
+        },
+      });
+    } catch (error) {
+      this.sessionLogger.warn(
+        { err: error, projectId, requestId },
+        "session: project.database.check.request failed",
+      );
+      this.emit({
+        type: "project.database.check.response",
+        payload: {
+          requestId,
+          projectId,
+          databaseName: null,
+          remoteCheck: null,
+          error: getErrorMessageOr(error, "Failed to check the server"),
+        },
+      });
+    }
+  }
+
+  private async handleProjectDatabaseListRequest(
+    request: Extract<SessionInboundMessage, { type: "project.database.list.request" }>,
+  ): Promise<void> {
+    const { projectId, requestId } = request;
+    const reply = (payload: {
+      databases: string[];
+      namePrefix: string | null;
+      error: string | null;
+    }) =>
+      this.emit({
+        type: "project.database.list.response",
+        payload: { requestId, projectId, ...payload },
+      });
+
+    const project = await this.projectRegistry.get(projectId);
+    if (!project) {
+      reply({ databases: [], namePrefix: null, error: "Project not found" });
+      return;
+    }
+    try {
+      const result = await listProjectDatabases({
+        projectRootPath: project.rootPath,
+        namePrefix: request.namePrefix,
+      });
+      reply({ databases: result.databases, namePrefix: result.namePrefix, error: null });
+    } catch (error) {
+      this.sessionLogger.warn(
+        { err: error, projectId, requestId },
+        "session: project.database.list.request failed",
+      );
+      reply({
+        databases: [],
+        namePrefix: null,
+        error: getErrorMessageOr(error, "Failed to list databases"),
+      });
+    }
+  }
+
+  private async handleProjectDatabaseSetRequest(
+    request: Extract<SessionInboundMessage, { type: "project.database.set.request" }>,
+  ): Promise<void> {
+    const { projectId, databaseName, requestId } = request;
+    this.sessionLogger.info(
+      { projectId, requestId, databaseName },
+      "session: project.database.set.request",
+    );
+    const reject = (error: string) =>
+      this.emit({
+        type: "project.database.set.response",
+        payload: {
+          requestId,
+          projectId,
+          accepted: false,
+          databaseName: null,
+          openedPhpStorm: false,
+          remoteCheck: null,
+          error,
+        },
+      });
+
+    const project = await this.projectRegistry.get(projectId);
+    if (!project) {
+      reject("Project not found");
+      return;
+    }
+
+    try {
+      const result = await switchProjectDatabase({
+        projectRootPath: project.rootPath,
+        databaseName,
+      });
+      this.sessionLogger.info(
+        { projectId, requestId, ...result },
+        "session: project.database.set.request done",
+      );
+      this.emit({
+        type: "project.database.set.response",
+        payload: {
+          requestId,
+          projectId,
+          accepted: true,
+          databaseName: result.databaseName,
+          openedPhpStorm: result.openedPhpStorm,
+          remoteCheck: result.remoteCheck,
+          error: null,
+        },
+      });
+      // Every workspace of the project carries the database name; re-describe them so the
+      // sidebar and the Databases page show the new one.
+      const workspaces = await this.workspaceRegistry.list();
+      const affectedWorkspaceIds = workspaces
+        .filter((workspace) => workspace.projectId === projectId)
+        .map((workspace) => workspace.workspaceId);
+      if (affectedWorkspaceIds.length > 0) {
+        await this.emitWorkspaceUpdatesForWorkspaceIds(affectedWorkspaceIds);
+      }
+    } catch (error) {
+      this.sessionLogger.warn(
+        { err: error, projectId, requestId },
+        "session: project.database.set.request failed",
+      );
+      reject(getErrorMessageOr(error, "Failed to change the database"));
     }
   }
 
@@ -5813,8 +6036,10 @@ export class Session {
     project: PersistedProjectRecord,
   ): Promise<WorkspaceProjectDescriptorPayload> {
     const icon = await this.projectIcons.snapshot(project);
+    const projectDatabaseName = await readProjectDatabaseName(project.rootPath);
     return {
       projectId: project.projectId,
+      ...(projectDatabaseName ? { projectDatabaseName } : {}),
       ...(project.projectKey ? { projectKey: project.projectKey } : {}),
       projectDisplayName: resolveProjectDisplayName(project),
       projectCustomName: project.customName ?? null,

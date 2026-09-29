@@ -337,6 +337,9 @@ const StoredProjectSchema = z.strictObject({
   projectCustomIconRevision: z.string().nullable(),
   projectIconRevision: z.string().optional(),
   projectRootPath: z.string(),
+  // Required for the same reason as on workspaces: a project cached before the field existed
+  // must fail the parse, so the daemon resends it with its database.
+  projectDatabaseName: z.string().nullable(),
   projectKind: z.enum(["git", "non_git", "directory"]),
 });
 
@@ -747,8 +750,17 @@ function serializeProject(project: ProjectDescriptor): StoredProject {
     projectCustomIconRevision: project.projectCustomIconRevision ?? null,
     projectIconRevision: project.projectIconRevision,
     projectRootPath: project.projectRootPath,
+    projectDatabaseName: project.projectDatabaseName ?? null,
     projectKind: project.projectKind,
   };
+}
+
+function deserializeProject(stored: StoredProject): ProjectDescriptor {
+  const { projectDatabaseName, ...rest } = stored;
+  return normalizeProjectDescriptor({
+    ...rest,
+    ...(projectDatabaseName !== null ? { projectDatabaseName } : {}),
+  });
 }
 
 function isTimelineItemStoredLosslessly(item: StreamItem): boolean {
@@ -871,7 +883,7 @@ function applyDirectoryRow(
     case "project": {
       const stored = parseStoredPayload(StoredProjectSchema, row.payload);
       if (stored.projectId !== row.id) throw new Error("Replica project row id mismatch");
-      result.projects.set(row.id, normalizeProjectDescriptor(stored));
+      result.projects.set(row.id, deserializeProject(stored));
       return;
     }
     case "checkpoint":
@@ -952,7 +964,7 @@ export class ReplicaCache {
       try {
         const stored = parseStoredPayload(StoredProjectSchema, projectRow.payload);
         if (stored.projectId !== projectRow.id) throw new Error("Replica project row id mismatch");
-        project = normalizeProjectDescriptor(stored);
+        project = deserializeProject(stored);
       } catch {
         await this.deleteInvalidRow(projectRow);
       }

@@ -6,6 +6,7 @@ import {
   ArrowDown,
   ArrowUp,
   CalendarClock,
+  Database,
   History,
   Plus,
   Search,
@@ -41,6 +42,7 @@ const BUILTIN_ICONS: Record<BuiltinSidebarNavId, LucideIcon> = {
   history: History,
   search: Search,
   schedules: CalendarClock,
+  databases: Database,
 };
 
 function NavIcon({ Icon, color = "" }: { Icon: LucideIcon; color?: string }) {

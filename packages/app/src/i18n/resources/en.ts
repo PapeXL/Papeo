@@ -1169,6 +1169,7 @@ export const en = {
       sessions: "History",
       search: "Search",
       schedules: "Schedules",
+      databases: "Databases",
     },
     worktreeSetup: {
       title: "Set up worktree scripts",

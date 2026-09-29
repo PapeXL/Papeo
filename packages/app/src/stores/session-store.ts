@@ -177,6 +177,7 @@ export interface ProjectDescriptor {
   projectCustomIconRevision?: string | null;
   projectIconRevision?: string;
   projectRootPath: string;
+  projectDatabaseName?: WorkspaceProjectDescriptorPayload["projectDatabaseName"];
   projectKind: WorkspaceDescriptorPayload["projectKind"];
 }
 
@@ -191,6 +192,7 @@ export function normalizeProjectDescriptor(
     projectCustomIconRevision: payload.projectCustomIconRevision ?? null,
     projectIconRevision: payload.projectIconRevision,
     projectRootPath: payload.projectRootPath,
+    projectDatabaseName: payload.projectDatabaseName,
     projectKind: payload.projectKind,
   };
 }

@@ -1895,6 +1895,17 @@ export class VoiceAssistantWebSocketServer {
         providerSubagentNesting: true,
         // COMPAT(workspacePinning): added in v0.1.107, remove gate after 2027-01-12.
         workspacePinning: true,
+        // COMPAT(projectDatabaseSet): added in v0.10.2 (fork), remove gate after 2027-09-29.
+        // The PhpStorm check and launch are Windows-only, so other hosts do not offer it.
+        ...(process.platform === "win32" ? { projectDatabaseSet: true } : {}),
+        // COMPAT(projectDatabaseList): added in v0.10.2 (fork), remove gate after 2027-09-29.
+        projectDatabaseList: true,
+        // COMPAT(projectDatabaseStatus): added in v0.10.2 (fork), remove gate after 2027-09-29.
+        projectDatabaseStatus: true,
+        // COMPAT(projectDatabaseCheck): added in v0.10.2 (fork), remove gate after 2027-09-29.
+        ...(process.platform === "win32" ? { projectDatabaseCheck: true } : {}),
+        // COMPAT(workspaceAttachedBranch): added in v0.10.2 (fork), remove gate after 2027-09-29.
+        workspaceAttachedBranch: true,
         // COMPAT(workspaceMarkUnread): added in v0.5.0, remove after 2027-08-20.
         workspaceMarkUnread: true,
         // COMPAT(hubRelationship): added in v0.1.X, drop the gate when floor >= v0.1.X.
