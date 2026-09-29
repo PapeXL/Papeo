@@ -304,6 +304,11 @@ const StoredWorkspaceSchema = z.strictObject({
   projectRootPath: z.string(),
   workspaceDirectory: z.string(),
   worktreeSlug: z.string().optional(),
+  // Required, not optional, unlike `labels` below: a row cached without this key must fail the
+  // parse. That drops the workspaces cursor, so the daemon resends every workspace with its
+  // name. As optional, a row written before the field existed would keep drawing its project
+  // header with no database line, because a current cursor gives the daemon nothing to resend.
+  projectDatabaseName: z.string().nullable(),
   projectKind: z.enum(["git", "non_git", "directory"]),
   workspaceKind: z.enum(["directory", "local_checkout", "checkout", "worktree"]),
   name: z.string(),
@@ -694,6 +699,7 @@ function serializeWorkspace(workspace: WorkspaceDescriptor): StoredWorkspace {
     projectRootPath: workspace.projectRootPath,
     workspaceDirectory: workspace.workspaceDirectory,
     worktreeSlug: workspace.worktreeSlug,
+    projectDatabaseName: workspace.projectDatabaseName ?? null,
     projectKind: workspace.projectKind,
     workspaceKind: workspace.workspaceKind,
     name: workspace.name,
@@ -722,6 +728,14 @@ function serializeWorkspace(workspace: WorkspaceDescriptor): StoredWorkspace {
     githubRuntime: workspace.githubRuntime,
     forge: workspace.forge,
   };
+}
+
+function deserializeWorkspace(stored: StoredWorkspace): WorkspaceDescriptor {
+  const { projectDatabaseName, ...rest } = stored;
+  return normalizeWorkspaceDescriptor({
+    ...rest,
+    ...(projectDatabaseName !== null ? { projectDatabaseName } : {}),
+  });
 }
 
 function serializeProject(project: ProjectDescriptor): StoredProject {
@@ -851,7 +865,7 @@ function applyDirectoryRow(
     case "workspace": {
       const stored = parseStoredPayload(StoredWorkspaceSchema, row.payload);
       if (stored.id !== row.id) throw new Error("Replica workspace row id mismatch");
-      result.workspaces.set(row.id, normalizeWorkspaceDescriptor(stored));
+      result.workspaces.set(row.id, deserializeWorkspace(stored));
       return;
     }
     case "project": {
@@ -926,7 +940,7 @@ export class ReplicaCache {
     try {
       const stored = parseStoredPayload(StoredWorkspaceSchema, workspaceRow.payload);
       if (stored.id !== workspaceRow.id) throw new Error("Replica workspace row id mismatch");
-      workspace = normalizeWorkspaceDescriptor(stored);
+      workspace = deserializeWorkspace(stored);
     } catch {
       await this.deleteInvalidRow(workspaceRow);
       return undefined;

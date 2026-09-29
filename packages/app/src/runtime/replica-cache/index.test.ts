@@ -765,6 +765,49 @@ describe("ReplicaCache", () => {
     });
   });
 
+  it("round-trips a workspace's project database name", async () => {
+    const storage = new MemoryStorage();
+    const writer = createCache(storage);
+    const value = directory();
+    const workspace = normalizeWorkspaceDescriptor({
+      ...workspacePayload(),
+      projectDatabaseName: "spy_live",
+    });
+    commitDirectory(writer, SERVER_ID, {
+      ...value,
+      workspaces: new Map([[workspace.id, workspace]]),
+    });
+    await writer.flush();
+
+    const restored = await createCache(storage).readDirectory(SERVER_ID);
+
+    expect(restored.workspaces.get("workspace-1")?.projectDatabaseName).toBe("spy_live");
+  });
+
+  it("refetches a workspace cached before it carried a project database name", async () => {
+    const storage = new MemoryStorage();
+    const writer = createCache(storage);
+    commitDirectory(
+      writer,
+      SERVER_ID,
+      directory({
+        workspaces: { generation: "g", afterSeq: 7 },
+        projects: { generation: "g", afterSeq: 4 },
+      }),
+    );
+    await writer.flush();
+    const rowKey = `${SERVER_ID}:workspace:workspace-1`;
+    const row = storage.rows.get(rowKey)!;
+    const { projectDatabaseName: _dropped, ...legacyPayload } = JSON.parse(row.payload);
+    storage.rows.set(rowKey, { ...row, payload: JSON.stringify(legacyPayload) });
+
+    const restored = await createCache(storage).readDirectory(SERVER_ID);
+
+    // The workspaces cursor goes, so the daemon resends every workspace — with the name.
+    expect(restored.workspaces.has("workspace-1")).toBe(false);
+    expect(restored.checkpoint).toEqual({ projects: { generation: "g", afterSeq: 4 } });
+  });
+
   it("commits directory rows and their checkpoint in one storage transaction", async () => {
     const storage = new MemoryStorage();
     const cache = createCache(storage);
