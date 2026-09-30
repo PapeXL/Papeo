@@ -384,6 +384,14 @@ hook is unset. ACP single-string terminal commands use the same non-login Bash
 behavior on macOS/Linux, but preserve their existing `cmd.exe /c` string semantics
 on Windows. Service scripts are separate:
 they launch in a terminal and receive the service environment described below.
+On Windows that terminal is `cmd.exe`, where `VAR=1 cmd` prefixes fail and `$VAR`
+stays literal. Wrap the command in `npx cross-env` and pass values only as its
+assignments (`PASEO_LISTEN=127.0.0.1:$PASEO_PORT`), which cross-env resolves itself.
+In command arguments cross-env rewrites `$VAR` to `%VAR%`, and `npm run` passes that
+through as literal text. That is why `app-win` sets Expo's port with `RCT_METRO_PORT`
+instead of `--port`. The Windows services in this repo's `paseo.json` (`daemon-win`,
+`app-win`) use this so each worktree runs on its own service ports instead of the
+root checkout's `6768`/`8081`.
 
 Because the shell differs per platform, a lifecycle command that must run
 everywhere cannot use POSIX-only syntax — `VAR=1 cmd` env prefixes, `$VAR`

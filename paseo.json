@@ -19,13 +19,11 @@
     },
     "daemon-win": {
       "type": "service",
-      "port": 6768,
-      "command": "npx cross-env PASEO_SKIP_DEV_SERVER_BUILD=1 PASEO_LISTEN=127.0.0.1:6768 node ./scripts/dev-daemon.mjs"
+      "command": "npx cross-env PASEO_SKIP_DEV_SERVER_BUILD=1 PASEO_LISTEN=127.0.0.1:$PASEO_PORT node ./scripts/dev-daemon.mjs"
     },
     "app-win": {
       "type": "service",
-      "port": 8081,
-      "command": "npx cross-env BROWSER=none EXPO_PUBLIC_LOCAL_DAEMON=localhost:6768 npm run start:expo --workspace=@getpaseo/app -- --port 8081"
+      "command": "npx cross-env BROWSER=none EXPO_PUBLIC_LOCAL_DAEMON=localhost:$PASEO_SERVICE_DAEMON_WIN_PORT RCT_METRO_PORT=$PASEO_PORT npm run start:expo --workspace=@getpaseo/app"
     },
     "desktop": {
       "type": "service",
