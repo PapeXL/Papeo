@@ -42,6 +42,28 @@ const TOP_RESIZER_STYLE: React.CSSProperties = {
   WebkitAppRegion: "no-drag",
 };
 
+const NO_DRAG_STYLE: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  minWidth: 0,
+  // @ts-expect-error — WebkitAppRegion is not in CSSProperties
+  WebkitAppRegion: "no-drag",
+};
+
+/**
+ * Takes its children out of a surrounding drag region. The global backstop in index.html
+ * covers buttons, links and focusable elements; content that reacts to hover without being
+ * any of those (a plugin card that shows more on pointerenter) needs this, or Electron
+ * swallows its pointer events as window dragging. Renders the children as they are off
+ * Electron.
+ */
+export function TitlebarNoDragRegion({ children }: { children: React.ReactNode }): React.ReactNode {
+  if (isNative || !getIsElectronRuntime()) {
+    return children;
+  }
+  return <div style={NO_DRAG_STYLE}>{children}</div>;
+}
+
 /**
  * Static drag overlay and top-edge resizer. Returns null on non-Electron.
  * Place as FIRST child of any positioned container that should be draggable.

@@ -2,6 +2,7 @@ import { router, usePathname } from "expo-router";
 import { useCallback } from "react";
 import { Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
+import { TitlebarNoDragRegion } from "@/components/desktop/titlebar-drag-region";
 import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { useHostRuntimeClient, useHosts } from "@/runtime/host-runtime";
@@ -51,15 +52,19 @@ function PluginSidebarInlineSurface({
 
   return (
     <View style={styles.inline} testID={testID}>
-      <PluginSurfaceMount
-        plugin={target.plugin}
-        Surface={surface.Component}
-        client={client}
-        hostId={target.plugin.serverId}
-        hostLabel={hostLabel}
-        compact={compact}
-        sidebar
-      />
+      {/* The sidebar's top area is a window drag region on desktop; an inline surface sits
+          in it and has to keep its hover and clicks. */}
+      <TitlebarNoDragRegion>
+        <PluginSurfaceMount
+          plugin={target.plugin}
+          Surface={surface.Component}
+          client={client}
+          hostId={target.plugin.serverId}
+          hostLabel={hostLabel}
+          compact={compact}
+          sidebar
+        />
+      </TitlebarNoDragRegion>
     </View>
   );
 }
