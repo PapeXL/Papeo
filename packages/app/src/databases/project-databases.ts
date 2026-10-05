@@ -193,3 +193,90 @@ export function describeReleaseWarning(status: ProjectReleaseStatus): string | n
       return null;
   }
 }
+
+/** How a database fits the code checked out in the project. */
+export type DatabaseFit =
+  | { kind: "fits" }
+  /** SPY's upgrade runner would run these tools/upgrades folders, ascending. */
+  | { kind: "migrations"; pending: number[] }
+  /** The database ran upgrades the checkout does not have; no migration can fix that. */
+  | { kind: "ahead" }
+  | { kind: "unknown" };
+
+/**
+ * The same rule SPY's upgrade runner uses: every numbered tools/upgrades folder above the
+ * database's spy_release is pending. A database above the newest folder is ahead of the code.
+ */
+export function analyzeDatabaseFit(input: {
+  upgradeReleases: readonly number[];
+  databaseRelease: number | null;
+}): DatabaseFit {
+  const codeRelease = input.upgradeReleases.at(-1);
+  if (codeRelease === undefined || input.databaseRelease === null) return { kind: "unknown" };
+  const databaseRelease = input.databaseRelease;
+  const pending = input.upgradeReleases.filter((release) => release > databaseRelease);
+  if (pending.length > 0) return { kind: "migrations", pending };
+  if (databaseRelease > codeRelease) return { kind: "ahead" };
+  return { kind: "fits" };
+}
+
+/** The short line under a database in the picker. */
+export function describeDatabaseOption(release: number | null, fit: DatabaseFit): string {
+  const version = release === null ? "Release unknown" : formatSpyRelease(release);
+  switch (fit.kind) {
+    case "fits":
+      return `${version} · fits this branch`;
+    case "migrations":
+      return `${version} · migrations needed`;
+    case "ahead":
+      return `${version} · newer than the code`;
+    case "unknown":
+      return version;
+  }
+}
+
+export interface DatabaseSwitchPrompt {
+  title: string;
+  message: string;
+  confirmLabel: string;
+}
+
+/** What the confirm step says before a switch, from the analysis of the chosen database. */
+export function describeDatabaseSwitch(input: {
+  projectName: string;
+  databaseName: string;
+  databaseRelease: number | null;
+  upgradeReleases: readonly number[];
+  fit: DatabaseFit;
+}): DatabaseSwitchPrompt {
+  const title = `Switch ${input.projectName} to ${input.databaseName}?`;
+  const database = formatSpyRelease(input.databaseRelease);
+  const code = formatSpyRelease(input.upgradeReleases.at(-1) ?? null);
+  switch (input.fit.kind) {
+    case "fits":
+      return {
+        title,
+        message: `Fits this branch: code and database are both ${code}. No migrations.`,
+        confirmLabel: "Switch",
+      };
+    case "migrations":
+      return {
+        title,
+        message: `Migrations needed: the database is at ${database}, the code at ${code}. These upgrades will run: ${input.fit.pending.join(", ")}.`,
+        confirmLabel: "Switch anyway",
+      };
+    case "ahead":
+      return {
+        title,
+        message: `The database (${database}) is newer than this branch (${code}). The code can fail against it, and migrations cannot fix that.`,
+        confirmLabel: "Switch anyway",
+      };
+    case "unknown":
+      return {
+        title,
+        message:
+          "The release of this database or of the code is unknown, so Papeo cannot say whether migrations are needed.",
+        confirmLabel: "Switch",
+      };
+  }
+}

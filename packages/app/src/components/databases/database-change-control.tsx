@@ -4,10 +4,21 @@ import { StyleSheet } from "react-native-unistyles";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useFetchQuery } from "@/data/query";
-import { describeDatabaseChange, type DatabaseChangeMessage } from "@/databases/project-databases";
+import {
+  analyzeDatabaseFit,
+  describeDatabaseChange,
+  describeDatabaseOption,
+  describeDatabaseSwitch,
+  type DatabaseChangeMessage,
+} from "@/databases/project-databases";
+import { confirmDialog } from "@/utils/confirm-dialog";
 import { useHostFeature } from "@/runtime/host-features";
 import { useHostRuntimeClient } from "@/runtime/host-runtime";
 import { toErrorMessage } from "@/utils/error-messages";
+
+type DatabaseListData = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof useHostRuntimeClient>>["listProjectDatabases"]>
+>;
 
 type ChangeState =
   | { kind: "idle" }
@@ -27,11 +38,13 @@ type ChangeState =
 export function DatabaseChangeControl({
   serverId,
   projectId,
+  projectName,
   currentName,
   namePrefix,
 }: {
   serverId: string;
   projectId: string;
+  projectName: string;
   currentName: string;
   namePrefix: string | null;
 }): ReactElement | null {
@@ -60,6 +73,22 @@ export function DatabaseChangeControl({
   const save = useCallback(async () => {
     const selected = state.kind === "choosing" || state.kind === "failed" ? state.selected : null;
     if (!client || !selected) return;
+    const upgradeReleases = databases.data?.upgradeReleases ?? [];
+    const databaseRelease =
+      databases.data?.releases.find((entry) => entry.name === selected)?.release ?? null;
+    const prompt = describeDatabaseSwitch({
+      projectName,
+      databaseName: selected,
+      databaseRelease,
+      upgradeReleases,
+      fit: analyzeDatabaseFit({ upgradeReleases, databaseRelease }),
+    });
+    const confirmed = await confirmDialog({
+      title: prompt.title,
+      message: prompt.message,
+      confirmLabel: prompt.confirmLabel,
+    });
+    if (!confirmed) return;
     setState({ kind: "saving", selected });
     try {
       const outcome = await client.setProjectDatabase({ projectId, databaseName: selected });
@@ -67,7 +96,7 @@ export function DatabaseChangeControl({
     } catch (error) {
       setState({ kind: "failed", selected, error: toErrorMessage(error) });
     }
-  }, [client, projectId, state]);
+  }, [client, databases.data, projectId, projectName, state]);
 
   const checkAgain = useCallback(async () => {
     if (!client || state.kind !== "done") return;
@@ -124,7 +153,7 @@ export function DatabaseChangeControl({
           variant="default"
           size="sm"
           onPress={save}
-          disabled={!selected || selected === currentName || isSaving || !client}
+          disabled={!selected || isSaving || !client}
           testID={`databases-change-save-${projectId}`}
         >
           {isSaving ? "Saving…" : "Save"}
@@ -199,7 +228,7 @@ function DatabaseOptions({
   selected: string | null;
   disabled: boolean;
   query: {
-    data?: { databases: string[]; namePrefix: string };
+    data?: DatabaseListData;
     error: unknown;
     isPending: boolean;
   };
@@ -216,7 +245,8 @@ function DatabaseOptions({
   if (query.error || !query.data) {
     return <Text style={styles.error}>{toErrorMessage(query.error)}</Text>;
   }
-  const { databases, namePrefix } = query.data;
+  const { databases, namePrefix, releases, upgradeReleases } = query.data;
+  const releaseByName = new Map(releases.map((entry) => [entry.name, entry.release]));
   if (databases.length === 0) {
     return (
       <Text style={styles.hint}>
@@ -231,6 +261,13 @@ function DatabaseOptions({
         <DatabaseOption
           key={name}
           name={name}
+          detail={describeDatabaseOption(
+            releaseByName.get(name) ?? null,
+            analyzeDatabaseFit({
+              upgradeReleases,
+              databaseRelease: releaseByName.get(name) ?? null,
+            }),
+          )}
           isCurrent={name === currentName}
           isSelected={name === selected}
           disabled={disabled}
@@ -243,12 +280,14 @@ function DatabaseOptions({
 
 function DatabaseOption({
   name,
+  detail,
   isCurrent,
   isSelected,
   disabled,
   onSelect,
 }: {
   name: string;
+  detail: string;
   isCurrent: boolean;
   isSelected: boolean;
   disabled: boolean;
@@ -266,12 +305,15 @@ function DatabaseOption({
   return (
     <Pressable
       onPress={handlePress}
-      disabled={disabled || isCurrent}
+      disabled={disabled}
       style={pressableStyle}
       testID={`databases-option-${name}`}
     >
       <Text style={isCurrent ? styles.optionCurrent : styles.optionText} numberOfLines={1}>
         {isCurrent ? `${name} (current)` : name}
+      </Text>
+      <Text style={styles.hint} numberOfLines={1}>
+        {detail}
       </Text>
     </Pressable>
   );

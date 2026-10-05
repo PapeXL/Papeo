@@ -1896,6 +1896,8 @@ export class VoiceAssistantWebSocketServer {
         projectDatabaseList: true,
         // COMPAT(projectDatabaseStatus): added in v0.10.2 (fork), remove gate after 2027-09-29.
         projectDatabaseStatus: true,
+        // COMPAT(projectDatabaseReleases): added in v0.10.2 (fork), remove gate after 2027-09-30.
+        projectDatabaseReleases: true,
         // COMPAT(projectDatabaseCheck): added in v0.10.2 (fork), remove gate after 2027-09-29.
         ...(process.platform === "win32" ? { projectDatabaseCheck: true } : {}),
         // COMPAT(workspaceAttachedBranch): added in v0.10.2 (fork), remove gate after 2027-09-29.

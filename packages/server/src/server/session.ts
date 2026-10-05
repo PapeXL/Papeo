@@ -728,6 +728,8 @@ export class Session {
   private readonly projectIcons: ProjectIconReader;
   private readonly worktreesRoot: string | undefined;
   private readonly rewindInitiators = new Map<string, object | undefined>();
+  /** The database name last sent on each project descriptor, to notice a config changed behind us. */
+  private readonly sentProjectDatabaseNames = new Map<string, string | null>();
 
   private agentManager: AgentManager;
   private readonly agentStorage: AgentStorage;
@@ -3623,6 +3625,21 @@ export class Session {
     }
   }
 
+  /**
+   * Sends the project and each of its workspaces again, since both carry the database name. A
+   * project with no workspace only shows its database through the project descriptor.
+   */
+  private async emitProjectDatabaseRefresh(project: PersistedProjectRecord): Promise<void> {
+    await this.emitProjectUpdate({ kind: "upsert", project });
+    const workspaces = await this.workspaceRegistry.list();
+    const affectedWorkspaceIds = workspaces
+      .filter((workspace) => workspace.projectId === project.projectId)
+      .map((workspace) => workspace.workspaceId);
+    if (affectedWorkspaceIds.length > 0) {
+      await this.emitWorkspaceUpdatesForWorkspaceIds(affectedWorkspaceIds);
+    }
+  }
+
   private async handleProjectDatabaseStatusRequest(
     request: Extract<SessionInboundMessage, { type: "project.database.status.request" }>,
   ): Promise<void> {
@@ -3648,6 +3665,12 @@ export class Session {
         type: "project.database.status.response",
         payload: { requestId, projectId, ...status, error: null },
       });
+      // Nothing watches config.inc.xml, and a restore rewrites it without asking Paseo. The
+      // status is asked for every shown database line, so it is where a changed name surfaces.
+      const current = await readProjectDatabaseName(project.rootPath);
+      if (this.sentProjectDatabaseNames.get(projectId) !== current) {
+        await this.emitProjectDatabaseRefresh(project);
+      }
     } catch (error) {
       this.sessionLogger.warn(
         { err: error, projectId, requestId },
@@ -3720,6 +3743,8 @@ export class Session {
     const reply = (payload: {
       databases: string[];
       namePrefix: string | null;
+      releases?: { name: string; release: number | null }[];
+      upgradeReleases?: number[];
       error: string | null;
     }) =>
       this.emit({
@@ -3737,7 +3762,13 @@ export class Session {
         projectRootPath: project.rootPath,
         namePrefix: request.namePrefix,
       });
-      reply({ databases: result.databases, namePrefix: result.namePrefix, error: null });
+      reply({
+        databases: result.databases,
+        namePrefix: result.namePrefix,
+        releases: result.releases,
+        upgradeReleases: result.upgradeReleases,
+        error: null,
+      });
     } catch (error) {
       this.sessionLogger.warn(
         { err: error, projectId, requestId },
@@ -3800,15 +3831,7 @@ export class Session {
           error: null,
         },
       });
-      // Every workspace of the project carries the database name; re-describe them so the
-      // sidebar and the Databases page show the new one.
-      const workspaces = await this.workspaceRegistry.list();
-      const affectedWorkspaceIds = workspaces
-        .filter((workspace) => workspace.projectId === projectId)
-        .map((workspace) => workspace.workspaceId);
-      if (affectedWorkspaceIds.length > 0) {
-        await this.emitWorkspaceUpdatesForWorkspaceIds(affectedWorkspaceIds);
-      }
+      await this.emitProjectDatabaseRefresh(project);
     } catch (error) {
       this.sessionLogger.warn(
         { err: error, projectId, requestId },
@@ -6103,6 +6126,7 @@ export class Session {
   ): Promise<WorkspaceProjectDescriptorPayload> {
     const icon = await this.projectIcons.snapshot(project);
     const projectDatabaseName = await readProjectDatabaseName(project.rootPath);
+    this.sentProjectDatabaseNames.set(project.projectId, projectDatabaseName);
     return {
       projectId: project.projectId,
       ...(projectDatabaseName ? { projectDatabaseName } : {}),

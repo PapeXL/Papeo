@@ -154,12 +154,14 @@ import {
   ProjectMetaLines,
   selectProjectCheckoutBranch,
   type ProjectCheckoutBranch,
+  type ProjectDatabaseTarget,
 } from "@/components/sidebar/workspace-meta-row";
 import {
   selectProjectDatabaseLine,
   selectProjectDatabaseName,
 } from "@/components/sidebar/workspace-meta-row/database-line";
 import { useSidebarRowItems } from "@/components/sidebar/display-preferences/model";
+import { useSessionStore } from "@/stores/session-store";
 import { PullRequestStateIcon } from "@/git/pull-request-state-icon";
 
 const workspaceKeyExtractor = (workspace: SidebarWorkspacePlacement) => workspace.workspaceKey;
@@ -278,6 +280,8 @@ interface ProjectHeaderRowProps {
   hostBadge?: HostBadgeModel | null;
   /** The project's database, when it declares one and the row item is on. */
   databaseName?: string | null;
+  /** Where to switch that database; null for a project on several hosts. */
+  database?: ProjectDatabaseTarget | null;
   /** The branch checked out in the project directory, when the branch row item is on. */
   branch?: ProjectCheckoutBranch | null;
 }
@@ -876,11 +880,13 @@ function ProjectHeaderTitle({
   displayName,
   hostBadge,
   databaseName,
+  database,
   branch,
 }: {
   displayName: string;
   hostBadge: HostBadgeModel | null;
   databaseName: string | null;
+  database?: ProjectDatabaseTarget | null;
   branch?: ProjectCheckoutBranch | null;
 }) {
   return (
@@ -891,7 +897,7 @@ function ProjectHeaderTitle({
         </Text>
         {hostBadge ? <HostBadge badge={hostBadge} /> : null}
       </View>
-      <ProjectMetaLines branch={branch} databaseName={databaseName} />
+      <ProjectMetaLines branch={branch} databaseName={databaseName} database={database} />
     </View>
   );
 }
@@ -919,6 +925,7 @@ function ProjectHeaderRow({
   dragHandleProps,
   hostBadge = null,
   databaseName = null,
+  database,
   branch,
 }: ProjectHeaderRowProps) {
   const [isHovered, setIsHovered] = useState(false);
@@ -1010,6 +1017,7 @@ function ProjectHeaderRow({
           displayName={displayName}
           hostBadge={hostBadge}
           databaseName={databaseName}
+          database={database}
           branch={branch}
         />
       </View>
@@ -1685,17 +1693,39 @@ function ProjectBlock({
   // The database belongs to the project, and every workspace under it reports the same value,
   // so the header asks its workspaces once instead of every row drawing the same name.
   const rowItems = useSidebarRowItems();
+  const singleHost = project.hosts.length === 1 ? project.hosts[0]! : null;
+  // A project with no workspace still names its database on the project descriptor.
+  const storedProjectDatabaseName = useSessionStore((state) =>
+    singleHost
+      ? (state.sessions[singleHost.serverId]?.projects.get(singleHost.projectId)
+          ?.projectDatabaseName ?? null)
+      : null,
+  );
   const projectDatabaseLine = useMemo(
     () =>
       selectProjectDatabaseLine({
-        databaseName: selectProjectDatabaseName(
-          project.workspaces.map(
+        databaseName: selectProjectDatabaseName([
+          storedProjectDatabaseName,
+          ...project.workspaces.map(
             (item) => workspaceEntriesByKey.get(item.workspaceKey)?.projectDatabaseName ?? null,
           ),
-        ),
+        ]),
         visible: rowItems,
       }),
-    [project.workspaces, rowItems, workspaceEntriesByKey],
+    [project.workspaces, rowItems, storedProjectDatabaseName, workspaceEntriesByKey],
+  );
+  // The switcher acts on one project on one host; a project shared by hosts keeps a plain line.
+  const projectDatabaseTarget = useMemo<ProjectDatabaseTarget | null>(
+    () =>
+      singleHost && projectDatabaseLine
+        ? {
+            serverId: singleHost.serverId,
+            projectId: singleHost.projectId,
+            projectName: project.projectName,
+            databaseName: projectDatabaseLine,
+          }
+        : null,
+    [project.projectName, projectDatabaseLine, singleHost],
   );
   // The live branch of the project directory, and where you switch it.
   const projectBranchLine = useMemo(
@@ -1907,6 +1937,7 @@ function ProjectBlock({
         dragHandleProps={dragHandleProps}
         hostBadge={singleHostBadge}
         databaseName={projectDatabaseLine}
+        database={projectDatabaseTarget}
         branch={projectBranchLine}
       />
 

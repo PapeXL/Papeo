@@ -7,6 +7,9 @@ import {
   describeReleaseLine,
   describeReleaseWarning,
   formatSpyRelease,
+  analyzeDatabaseFit,
+  describeDatabaseOption,
+  describeDatabaseSwitch,
 } from "./project-databases";
 
 function workspace(input: {
@@ -239,5 +242,75 @@ describe("release status", () => {
     expect(
       describeReleaseWarning({ ...status, databaseRelease: 202609, state: "in_sync" }),
     ).toBeNull();
+  });
+});
+
+describe("analyzeDatabaseFit", () => {
+  const upgradeReleases = [202603, 202606, 202607, 202609];
+
+  it("lists the upgrade folders above the database's release, as SPY's runner would run them", () => {
+    expect(analyzeDatabaseFit({ upgradeReleases, databaseRelease: 202606 })).toEqual({
+      kind: "migrations",
+      pending: [202607, 202609],
+    });
+  });
+
+  it("fits when the database is at the newest folder", () => {
+    expect(analyzeDatabaseFit({ upgradeReleases, databaseRelease: 202609 })).toEqual({
+      kind: "fits",
+    });
+  });
+
+  it("is ahead when the database ran upgrades the checkout does not have", () => {
+    expect(analyzeDatabaseFit({ upgradeReleases, databaseRelease: 202610 })).toEqual({
+      kind: "ahead",
+    });
+  });
+
+  it("is unknown without a database release or without upgrade folders", () => {
+    expect(analyzeDatabaseFit({ upgradeReleases, databaseRelease: null })).toEqual({
+      kind: "unknown",
+    });
+    expect(analyzeDatabaseFit({ upgradeReleases: [], databaseRelease: 202609 })).toEqual({
+      kind: "unknown",
+    });
+  });
+});
+
+describe("database switch texts", () => {
+  it("describes each option in the picker", () => {
+    expect(describeDatabaseOption(202607, { kind: "migrations", pending: [202609] })).toBe(
+      "2026-07 · migrations needed",
+    );
+    expect(describeDatabaseOption(null, { kind: "unknown" })).toBe("Release unknown");
+  });
+
+  it("asks before a switch that needs migrations and names the upgrades", () => {
+    expect(
+      describeDatabaseSwitch({
+        projectName: "SPY 1",
+        databaseName: "test_dp_kca",
+        databaseRelease: 202606,
+        upgradeReleases: [202606, 202607, 202609],
+        fit: { kind: "migrations", pending: [202607, 202609] },
+      }),
+    ).toEqual({
+      title: "Switch SPY 1 to test_dp_kca?",
+      message:
+        "Migrations needed: the database is at 2026-06, the code at 2026-09. These upgrades will run: 202607, 202609.",
+      confirmLabel: "Switch anyway",
+    });
+  });
+
+  it("still lets a newer database be chosen, with a warning", () => {
+    expect(
+      describeDatabaseSwitch({
+        projectName: "SPY 3",
+        databaseName: "test_dp_day",
+        databaseRelease: 202610,
+        upgradeReleases: [202609],
+        fit: { kind: "ahead" },
+      }).confirmLabel,
+    ).toBe("Switch anyway");
   });
 });

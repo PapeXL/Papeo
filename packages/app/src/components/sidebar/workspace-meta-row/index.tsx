@@ -22,6 +22,7 @@ import { selectMetaRowItems, type MetaRowItem, type WorkspaceRowBranch } from ".
 import { workspaceServiceLabelKey, type WorkspaceServiceSummary } from "./service-summary";
 import type { ProjectCheckoutBranch } from "./project-branch";
 import { ProjectBranchSwitcher } from "./project-branch-switcher";
+import { ProjectDatabaseSwitcher, type ProjectDatabaseTarget } from "./project-database-switcher";
 
 export {
   selectWorkspaceServiceSummary,
@@ -30,6 +31,7 @@ export {
 } from "./service-summary";
 export { selectWorkspaceRowBranch, type WorkspaceRowBranch } from "./meta-items";
 export { selectProjectCheckoutBranch, type ProjectCheckoutBranch } from "./project-branch";
+export type { ProjectDatabaseTarget } from "./project-database-switcher";
 
 /**
  * One size for every glyph on the line. The items are peers — host, change request, CI,
@@ -151,24 +153,40 @@ const IDENTITY_ICONS = {
 export function ProjectMetaLines({
   branch,
   databaseName,
+  database,
 }: {
   branch?: ProjectCheckoutBranch | null;
   databaseName: string | null;
+  /** When given, the database line is the switcher; a project on several hosts has none. */
+  database?: ProjectDatabaseTarget | null;
 }) {
   return (
     <>
-      {databaseName ? (
-        <View style={styles.identityItem} testID="sidebar-project-database">
-          <View style={styles.identityIcon}>
-            <ThemedDatabase size={META_ICON_SIZE} uniProps={mutedMapping} />
-          </View>
-          <Text style={styles.identityText} numberOfLines={1}>
-            {databaseName}
-          </Text>
-        </View>
-      ) : null}
+      <ProjectDatabaseLine database={database ?? null} databaseName={databaseName} />
       {branch ? <ProjectBranchSwitcher branch={branch} /> : null}
     </>
+  );
+}
+
+/** The switcher when the project can switch its database here, else the plain name. */
+function ProjectDatabaseLine({
+  database,
+  databaseName,
+}: {
+  database: ProjectDatabaseTarget | null;
+  databaseName: string | null;
+}) {
+  if (database) return <ProjectDatabaseSwitcher target={database} />;
+  if (!databaseName) return null;
+  return (
+    <View style={styles.identityItem} testID="sidebar-project-database">
+      <View style={styles.identityIcon}>
+        <ThemedDatabase size={META_ICON_SIZE} uniProps={mutedMapping} />
+      </View>
+      <Text style={styles.identityText} numberOfLines={1}>
+        {databaseName}
+      </Text>
+    </View>
   );
 }
 

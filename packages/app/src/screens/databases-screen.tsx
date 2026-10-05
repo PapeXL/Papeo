@@ -234,6 +234,7 @@ function DatabaseRow({
           <DatabaseChangeControl
             serverId={row.serverId}
             projectId={row.projectId}
+            projectName={row.projectName}
             currentName={row.databaseName}
             namePrefix={namePrefix}
           />

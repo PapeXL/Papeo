@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
@@ -10,6 +10,7 @@ import {
 } from "./phpstorm.js";
 import {
   findProjectDatabaseConfigPath,
+  isValidSpyDatabaseName,
   parseSpyDatabaseName,
   parseSpyMysqlHost,
 } from "./spy-database.js";
@@ -29,10 +30,20 @@ import {
 
 export const READ_ONLY_MYSQL_USER = "spy_ai_chat";
 
+export interface ProjectDatabaseRelease {
+  name: string;
+  /** `system|spy_release`, e.g. 202609; null when the database has none or it was not read. */
+  release: number | null;
+}
+
 export interface ProjectDatabaseListResult {
   databases: string[];
   /** The prefix the list was filtered by; empty means no filter. */
   namePrefix: string;
+  /** One entry per listed database, in the same order. */
+  releases: ProjectDatabaseRelease[];
+  /** The numbered folders in the checkout's tools/upgrades, ascending. */
+  upgradeReleases: number[];
 }
 
 export class ProjectDatabaseListError extends Error {
@@ -52,6 +63,7 @@ export interface ProjectDatabaseListDeps {
   readDeployment: (projectRootPath: string) => Promise<PhpStormDeployment | null>;
   readLocalFile: (path: string) => Promise<string>;
   readReadOnlyCredentials: () => Promise<ReadOnlyMysqlCredentials | null>;
+  listUpgradeFolders: (projectRootPath: string) => Promise<string[]>;
   runRemoteMysqlQuery: (input: {
     target: PhpStormRemoteTarget;
     login: RemoteMysqlLogin;
@@ -89,6 +101,8 @@ export const DEFAULT_PROJECT_DATABASE_LIST_DEPS: ProjectDatabaseListDeps = {
   readDeployment: readPhpStormDeployment,
   readLocalFile: (path) => readFile(path, "utf8"),
   readReadOnlyCredentials: readSpyMysqlMcpCredentials,
+  listUpgradeFolders: async (projectRootPath) =>
+    readdir(join(projectRootPath, "tools", "upgrades")).catch(() => []),
   runRemoteMysqlQuery,
 };
 
@@ -101,12 +115,41 @@ export function defaultDatabaseNamePrefix(currentDatabaseName: string | null): s
 }
 
 /**
- * The statement for a prefix. `_` is a LIKE wildcard, so it is escaped: unescaped, `test_dp_`
- * would also match other developers' `testXdpY…` names.
+ * The databases for a prefix, each with whether it has a `system_config` table — the release
+ * query below may only name databases that do, or MySQL rejects the whole statement. `_` is a
+ * LIKE wildcard, so it is escaped: unescaped, `test_dp_` would also match other developers'
+ * `testXdpY…` names.
  */
-export function buildShowDatabasesSql(namePrefix: string): string {
-  if (!namePrefix) return "SHOW DATABASES";
-  return `SHOW DATABASES LIKE '${namePrefix.replaceAll("_", "\\_")}%'`;
+export function buildListDatabasesSql(namePrefix: string): string {
+  const where = namePrefix
+    ? ` WHERE s.SCHEMA_NAME LIKE '${namePrefix.replaceAll("_", "\\_")}%'`
+    : "";
+  return (
+    "SELECT s.SCHEMA_NAME, IF(t.TABLE_NAME IS NULL, 0, 1) FROM information_schema.SCHEMATA s" +
+    " LEFT JOIN information_schema.TABLES t ON t.TABLE_SCHEMA = s.SCHEMA_NAME" +
+    ` AND t.TABLE_NAME = 'system_config'${where}`
+  );
+}
+
+/**
+ * One statement for the `system|spy_release` of many databases. Names are checked first, so
+ * none can leave its quotes or backticks.
+ */
+export function buildReleasesSql(databaseNames: readonly string[]): string | null {
+  const parts = databaseNames
+    .filter((name) => isValidSpyDatabaseName(name))
+    .map(
+      (name) =>
+        `SELECT '${name}', \`value\` FROM \`${name}\`.\`system_config\` WHERE \`key\` = 'system|spy_release'`,
+    );
+  return parts.length > 0 ? parts.join(" UNION ALL ") : null;
+}
+
+function parseTabRows(stdout: string): string[][] {
+  return stdout
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0)
+    .map((line) => line.split("\t").map((cell) => cell.trim()));
 }
 
 export async function listProjectDatabases(input: {
@@ -154,15 +197,47 @@ export async function listProjectDatabases(input: {
     );
   }
 
-  const stdout = await deps.runRemoteMysqlQuery({
-    target: deployment.remote,
-    login: { ...mysqlHost, user: credentials.user, password: credentials.password },
-    sql: buildShowDatabasesSql(namePrefix),
-  });
-  const databases = stdout
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((name) => name.length > 0 && !SYSTEM_DATABASES.has(name))
-    .toSorted();
-  return { databases, namePrefix };
+  const target = deployment.remote;
+  const login = { ...mysqlHost, user: credentials.user, password: credentials.password };
+  const listed = parseTabRows(
+    await deps.runRemoteMysqlQuery({ target, login, sql: buildListDatabasesSql(namePrefix) }),
+  ).filter(([name]) => name && !SYSTEM_DATABASES.has(name));
+  const databases = listed.map(([name]) => name!).toSorted();
+
+  // Releases are extra: a list without them still lets the user switch, so a failure here
+  // leaves every release unknown instead of failing the list.
+  const releaseByName = new Map<string, number>();
+  const releasesSql = buildReleasesSql(
+    listed.filter(([, hasConfig]) => hasConfig === "1").map(([name]) => name!),
+  );
+  if (releasesSql) {
+    try {
+      const rows = parseTabRows(
+        await deps.runRemoteMysqlQuery({ target, login, sql: releasesSql }),
+      );
+      for (const [name, value] of rows) {
+        const release = Number(value);
+        if (name && value && Number.isFinite(release)) releaseByName.set(name, release);
+      }
+    } catch {
+      // Unknown releases, as above.
+    }
+  }
+
+  return {
+    databases,
+    namePrefix,
+    releases: databases.map((name) => ({ name, release: releaseByName.get(name) ?? null })),
+    upgradeReleases: listUpgradeReleases(await deps.listUpgradeFolders(input.projectRootPath)),
+  };
+}
+
+/** The same folder pattern SPY's upgrade runner uses: `202609`, or `202609.1`. */
+const RELEASE_FOLDER_PATTERN = /^(\d+(?:\.\d+)?)$/;
+
+export function listUpgradeReleases(folderNames: readonly string[]): number[] {
+  return folderNames
+    .filter((name) => RELEASE_FOLDER_PATTERN.test(name))
+    .map(Number)
+    .toSorted((a, b) => a - b);
 }

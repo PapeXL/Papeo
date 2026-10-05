@@ -2165,6 +2165,11 @@ export const ProjectDatabaseListResponseSchema = z.object({
     databases: z.array(z.string()),
     // The prefix the daemon filtered by; empty means no filter. Null on error.
     namePrefix: z.string().nullable(),
+    // COMPAT(projectDatabaseReleases): added in v0.10.2 (fork), remove optional after 2027-09-30.
+    // Each listed database's system|spy_release (null when unknown), and the checkout's
+    // tools/upgrades folders, so the client can tell which upgrades a switch would need.
+    releases: z.array(z.object({ name: z.string(), release: z.number().nullable() })).optional(),
+    upgradeReleases: z.array(z.number()).optional(),
     error: z.string().nullable(),
   }),
 });
@@ -3795,6 +3800,8 @@ export const ServerInfoStatusPayloadSchema = z
         projectDatabaseCheck: z.boolean().optional(),
         // COMPAT(projectDatabaseStatus): added in v0.10.2 (fork), remove gate after 2027-09-29.
         projectDatabaseStatus: z.boolean().optional(),
+        // COMPAT(projectDatabaseReleases): added in v0.10.2 (fork), remove gate after 2027-09-30.
+        projectDatabaseReleases: z.boolean().optional(),
         // COMPAT(workspaceAttachedBranch): added in v0.10.2 (fork), remove gate after 2027-09-29.
         workspaceAttachedBranch: z.boolean().optional(),
         // COMPAT(workspaceMarkUnread): added in v0.5.0, remove after 2027-08-20.

@@ -3105,7 +3105,13 @@ export class DaemonClient {
     projectId: string;
     namePrefix?: string | null;
     requestId?: string;
-  }): Promise<{ databases: string[]; namePrefix: string }> {
+  }): Promise<{
+    databases: string[];
+    namePrefix: string;
+    /** Empty from daemons without the projectDatabaseReleases feature. */
+    releases: { name: string; release: number | null }[];
+    upgradeReleases: number[];
+  }> {
     const payload =
       await this.sendNamespacedCorrelatedSessionRequest<"project.database.list.response">({
         requestId: input.requestId,
@@ -3118,7 +3124,13 @@ export class DaemonClient {
     if (payload.error !== null || payload.namePrefix === null) {
       throw new Error(payload.error ?? "listProjectDatabases rejected");
     }
-    return { databases: payload.databases, namePrefix: payload.namePrefix };
+    return {
+      databases: payload.databases,
+      namePrefix: payload.namePrefix,
+      // COMPAT(projectDatabaseReleases): older daemons send neither field.
+      releases: payload.releases ?? [],
+      upgradeReleases: payload.upgradeReleases ?? [],
+    };
   }
 
   async removeProject(

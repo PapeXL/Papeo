@@ -9,6 +9,7 @@ import {
 } from "./phpstorm.js";
 import { runGitCommand } from "./run-git-command.js";
 import {
+  listUpgradeReleases,
   READ_ONLY_MYSQL_USER,
   readSpyMysqlMcpCredentials,
   type ReadOnlyMysqlCredentials,
@@ -86,17 +87,8 @@ export const DEFAULT_PROJECT_DATABASE_STATUS_DEPS: ProjectDatabaseStatusDeps = {
   runRemoteMysqlQuery,
 };
 
-/** The same folder pattern the upgrade runner uses: `202609`, or `202609.1`. */
-const RELEASE_FOLDER_PATTERN = /^(\d+(?:\.\d+)?)$/;
-
 export function newestCodeRelease(folderNames: readonly string[]): number | null {
-  let newest: number | null = null;
-  for (const name of folderNames) {
-    if (!RELEASE_FOLDER_PATTERN.test(name)) continue;
-    const release = Number(name);
-    if (newest === null || release > newest) newest = release;
-  }
-  return newest;
+  return listUpgradeReleases(folderNames).at(-1) ?? null;
 }
 
 export function compareReleases(
