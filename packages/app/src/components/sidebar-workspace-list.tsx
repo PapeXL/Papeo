@@ -2047,11 +2047,14 @@ export function SidebarWorkspaceList({
   // this whole subtree, which unmounted the header — and the header is where the display menu's
   // trigger lives, so filtering the last row away closed the menu you were filtering from.
   //
-  // Only the label filter can get here. The project filter resolves against the projects it can
-  // see and falls back to "all projects" when nothing matches, so it either keeps at least one
-  // project or is not applied at all — it can narrow this list but never empty it.
+  // Only the label filter can get here, and only in the grouped modes. It removes workspaces but
+  // keeps project headers, so project mode always has a row to show. The grouped modes have no
+  // project headers, so a label that matches no workspace leaves them empty.
   const sidebarFilterEmpty =
-    hasActiveLabelFilter && hasProjectsBeforeFilter && projects.length === 0;
+    hasActiveLabelFilter &&
+    hasProjectsBeforeFilter &&
+    groupMode !== "project" &&
+    workspaceEntriesByKey.size === 0;
 
   // Project mode is the one that keeps its project headers; every other grouping mode is a flat
   // list of grouped rows, so a new mode lands in the grouped branch rather than silently in this
